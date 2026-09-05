@@ -4,6 +4,7 @@
 // visible on every authenticated page).
 
 import { useState, useEffect, useRef } from "react";
+import { LogIn, LogOut as LogOutIcon } from "lucide-react";
 import { checkIn, checkOut, getMyAttendance } from "../api/attendance.api";
 
 function formatElapsed(ms) {
@@ -77,6 +78,7 @@ export default function AttendanceWidget() {
         disabled={loading}
         className={active ? "btn-checkout" : "btn-checkin"}
       >
+        {active ? <LogOutIcon size={14} /> : <LogIn size={14} />}
         {active ? "Check Out" : "Check In"}
       </button>
     </div>

@@ -5,6 +5,10 @@ import {
   getTimeOffRequests,
   getTimeOffTypes,
 } from "../../api/timeoff.api";
+import StatusBadge from "../../components/ui/StatusBadge.jsx";
+import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
+import { CalendarRange } from "lucide-react";
 
 export default function MyTimeOffRequests() {
   const [requests, setRequests] = useState([]);

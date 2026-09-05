@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { AlertCircle, Plus, Users as UsersIcon } from 'lucide-react';
 import client from '../../api/client';
 import EmployeeFormModal from './EmployeeFormModal.jsx';
+import StatusBadge from '../../components/ui/StatusBadge.jsx';
+import { SkeletonTable } from '../../components/ui/Skeleton.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
@@ -48,19 +52,31 @@ export default function EmployeesPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Employees</h1>
+        <div>
+          <div className="page-eyebrow">Workforce</div>
+          <h1>Employees</h1>
+          <div className="page-subtitle">{loading ? 'Loading…' : `${employees.length} total employees`}</div>
+        </div>
         <div className="page-header-actions">
           <div className="view-toggle">
             <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>List</button>
             <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')}>Kanban</button>
           </div>
-          <button className="btn btn-primary" onClick={openCreate}>+ New Employee</button>
+          <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Employee</button>
         </div>
       </div>
 
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
+
       {loading ? (
-        <p>Loading...</p>
+        <SkeletonTable rows={6} columns={7} />
+      ) : employees.length === 0 ? (
+        <EmptyState
+          icon={UsersIcon}
+          title="No employees yet"
+          description="Add your first employee to start building out your workforce records."
+          action={<button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Employee</button>}
+        />
       ) : view === 'list' ? (
         <table className="data-table">
           <thead>
@@ -77,10 +93,10 @@ export default function EmployeesPage() {
                 <td>{emp.jobPosition || '—'}</td>
                 <td>{emp.manager?.name || '—'}</td>
                 <td>{emp.schedule?.name || '—'}</td>
-                <td><span className={`badge badge-${emp.status}`}>{emp.status}</span></td>
+                <td><StatusBadge status={emp.status} /></td>
                 <td>{emp._count?.contracts ?? 0}</td>
                 <td className="row-actions">
-                  <button className="btn btn-small" onClick={() => openEdit(emp)}>Edit</button>
+                  <button className="btn btn-small btn-secondary" onClick={() => openEdit(emp)}>Edit</button>
                   <button className="btn btn-small btn-danger" onClick={() => handleDelete(emp)}>Delete</button>
                 </td>
               </tr>
@@ -96,7 +112,7 @@ export default function EmployeesPage() {
                 <div className="kanban-card" key={emp.id} onClick={() => openEdit(emp)}>
                   <div className="kanban-card-name">{emp.name}</div>
                   <div className="kanban-card-sub">{emp.jobPosition || '—'}</div>
-                  <span className={`badge badge-${emp.status}`}>{emp.status}</span>
+                  <StatusBadge status={emp.status} />
                 </div>
               ))}
             </div>

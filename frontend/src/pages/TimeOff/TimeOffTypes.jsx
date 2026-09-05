@@ -34,7 +34,10 @@ export default function TimeOffTypes() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Time Off Types</h1>
+        <div>
+          <div className="page-eyebrow">Time Off</div>
+          <h1>Time Off Types</h1>
+        </div>
       </div>
       <form className="card" onSubmit={submit}>
         <label>

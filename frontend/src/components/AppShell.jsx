@@ -1,7 +1,22 @@
-import React, { useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import AttendanceWidget from "./AttendanceWidget.jsx";
+import {
+  Bell,
+  CalendarRange,
+  ChevronDown,
+  Clock,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  User,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
 
 const NAV_RULES = {
   employees: ["Admin", "HR Manager", "HR Payroll User", "HR Payroll Manager"],
@@ -20,108 +35,247 @@ function canSee(role, key) {
   return NAV_RULES[key].includes(role);
 }
 
+function initials(name) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function NavLink({ to, icon: Icon, label, collapsed, active }) {
+  return (
+    <Link to={to} className={`sidebar-link${active ? " active" : ""}`}>
+      <Icon size={17} strokeWidth={2} />
+      <span className="sidebar-link-label">{label}</span>
+      {collapsed && <span className="sidebar-tooltip">{label}</span>}
+    </Link>
+  );
+}
+
+function NavGroup({ icon: Icon, label, collapsed, children, defaultOpen }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div>
+      <button
+        type="button"
+        className={`sidebar-link-btn${open ? " open" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon size={17} strokeWidth={2} />
+        <span className="sidebar-link-label">{label}</span>
+        <ChevronDown size={15} className="sidebar-chevron" />
+        {collapsed && <span className="sidebar-tooltip">{label}</span>}
+      </button>
+      {open && !collapsed && <div className="sidebar-submenu">{children}</div>}
+    </div>
+  );
+}
+
 export default function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [employeesMenuOpen, setEmployeesMenuOpen] = useState(false);
-  const [timeOffMenuOpen, setTimeOffMenuOpen] = useState(false);
-  const [payrollMenuOpen, setPayrollMenuOpen] = useState(false);
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => setMobileOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    function onClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const isActive = (path) => location.pathname === path;
+  const isUnder = (prefix) => location.pathname.startsWith(prefix);
+
+  const displayName = user.employee?.name || user.email;
+
   return (
     <div className="app-shell">
-      <header className="topnav">
-        <div className="topnav-brand">PeoplePay360</div>
+      <div
+        className={`mobile-overlay${mobileOpen ? " open" : ""}`}
+        onClick={() => setMobileOpen(false)}
+      />
 
-        <nav className="topnav-links">
+      <aside className={`sidebar${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}>
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-mark">P360</div>
+          <div className="sidebar-brand-text">
+            PeoplePay360
+            <small>HR &amp; Payroll</small>
+          </div>
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <Menu size={16} /> : <X size={16} />}
+          </button>
+        </div>
+
+        <nav className="sidebar-nav">
           {canSee(user.role, "employees") && (
-            <div
-              className="nav-dropdown"
-              onMouseEnter={() => setEmployeesMenuOpen(true)}
-              onMouseLeave={() => setEmployeesMenuOpen(false)}
-            >
-              <span className="nav-link">Employees ▾</span>
-              {employeesMenuOpen && (
-                <div className="nav-dropdown-menu">
-                  <Link to="/employees">Employees</Link>
-                  <Link to="/departments">Departments</Link>
-                  <Link to="/schedules">Working Schedules</Link>
-                </div>
-              )}
-            </div>
+            <>
+              <div className="sidebar-section-label">Workforce</div>
+              <NavGroup icon={Users} label="Employees" collapsed={collapsed} defaultOpen={isUnder("/employees")}>
+                <Link className="sidebar-link" to="/employees">Employees</Link>
+                <Link className="sidebar-link" to="/departments">Departments</Link>
+                <Link className="sidebar-link" to="/schedules">Working Schedules</Link>
+                <Link className="sidebar-link" to="/contracts">Contracts</Link>
+              </NavGroup>
+            </>
           )}
 
-          <Link className="nav-link" to="/attendance">
-            Attendance
-          </Link>
+          <div className="sidebar-section-label">{collapsed ? "•" : "Time"}</div>
+          <NavLink to="/attendance" icon={Clock} label="Attendance" collapsed={collapsed} active={isActive("/attendance")} />
 
           {canSee(user.role, "timeOff") && (
-            <div
-              className="nav-dropdown"
-              onMouseEnter={() => setTimeOffMenuOpen(true)}
-              onMouseLeave={() => setTimeOffMenuOpen(false)}
-            >
-              <span className="nav-link">Time Off ▾</span>
-              {timeOffMenuOpen && (
-                <div className="nav-dropdown-menu">
-                  <Link to="/time-off/my-requests">My Requests</Link>
-                  {canSee(user.role, "employees") && (
-                    <>
-                      <Link to="/time-off/approvals">Approvals</Link>
-                      <Link to="/time-off/allocations">Allocations</Link>
-                      <Link to="/time-off/types">Time Off Types</Link>
-                    </>
-                  )}
-                </div>
+            <NavGroup icon={CalendarRange} label="Time Off" collapsed={collapsed} defaultOpen={isUnder("/time-off")}>
+              <Link className="sidebar-link" to="/time-off/my-requests">My Requests</Link>
+              {canSee(user.role, "employees") && (
+                <>
+                  <Link className="sidebar-link" to="/time-off/approvals">Approvals</Link>
+                  <Link className="sidebar-link" to="/time-off/allocations">Allocations</Link>
+                  <Link className="sidebar-link" to="/time-off/types">Time Off Types</Link>
+                </>
               )}
-            </div>
+            </NavGroup>
           )}
 
           {canSee(user.role, "payroll") && (
-            <div
-              className="nav-dropdown"
-              onMouseEnter={() => setPayrollMenuOpen(true)}
-              onMouseLeave={() => setPayrollMenuOpen(false)}
-            >
-              <span className="nav-link">Payroll ▾</span>
-              {payrollMenuOpen && (
-                <div className="nav-dropdown-menu">
-                  <Link to="/payroll/dashboard">Dashboard</Link>
-                  <Link to="/payroll/payruns">Payruns</Link>
-                  <Link to="/payroll/salary-structures">Salary Structures</Link>
-                  <Link to="/payroll/salary-rules">Salary Rules</Link>
-                  <Link to="/payroll/payslips">Payslips</Link>
-                </div>
-              )}
-            </div>
+            <>
+              <div className="sidebar-section-label">{collapsed ? "•" : "Finance"}</div>
+              <NavGroup icon={Wallet} label="Payroll" collapsed={collapsed} defaultOpen={isUnder("/payroll")}>
+                <Link className="sidebar-link" to="/payroll/dashboard">Dashboard</Link>
+                <Link className="sidebar-link" to="/payroll/payruns">Payruns</Link>
+                <Link className="sidebar-link" to="/payroll/salary-structures">Salary Structures</Link>
+                <Link className="sidebar-link" to="/payroll/salary-rules">Salary Rules</Link>
+                <Link className="sidebar-link" to="/payroll/payslips">Payslips</Link>
+              </NavGroup>
+            </>
           )}
 
           {canSee(user.role, "userManagement") && (
-            <Link className="nav-link" to="/users">
-              User Management
-            </Link>
+            <>
+              <div className="sidebar-section-label">{collapsed ? "•" : "Administration"}</div>
+              <NavLink to="/users" icon={ShieldCheck} label="User Management" collapsed={collapsed} active={isActive("/users")} />
+            </>
           )}
         </nav>
 
-        <div className="topnav-user">
-          <span className="topnav-user-name">
-            {user.employee?.name || user.email}
-          </span>
-          <span className="topnav-user-role">{user.role}</span>
-          {user.employee && <AttendanceWidget />}
-          <button className="btn btn-ghost" onClick={handleLogout}>
-            Log out
-          </button>
+        <div className="sidebar-footer">
+          <NavLink to="/my-profile" icon={User} label="My Profile" collapsed={collapsed} active={isActive("/my-profile")} />
         </div>
-      </header>
+      </aside>
 
-      <main className="app-content">
-        <Outlet />
-      </main>
+      <div className="main-column">
+        <header className="topbar">
+          <button
+            type="button"
+            className="topbar-menu-btn"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="topbar-title">
+            {breadcrumbFor(location.pathname)}
+          </div>
+
+          <div className="topbar-search">
+            <Search size={15} />
+            <input placeholder="Search employees, payruns…" />
+          </div>
+
+          <div className="topbar-spacer" />
+
+          <div className="topbar-actions">
+            {user.employee && <AttendanceWidget />}
+            <button className="topbar-icon-btn" title="Notifications">
+              <Bell size={17} />
+              <span className="topbar-icon-dot" />
+            </button>
+
+            <div className="topbar-user" ref={menuRef}>
+              <button
+                type="button"
+                className="topbar-user-trigger"
+                onClick={() => setUserMenuOpen((o) => !o)}
+              >
+                <div className="avatar">{initials(displayName)}</div>
+                <div className="topbar-user-meta">
+                  <div className="topbar-user-name">{displayName}</div>
+                  <div className="topbar-user-role">{user.role}</div>
+                </div>
+                <ChevronDown size={15} color="var(--text-faint)" />
+              </button>
+
+              {userMenuOpen && (
+                <div className="user-dropdown">
+                  <div className="user-dropdown-header">
+                    <span className="topbar-user-name">{displayName}</span>
+                    <div className="topbar-user-role">{user.email}</div>
+                  </div>
+                  <Link
+                    className="user-dropdown-item"
+                    to="/my-profile"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <User size={16} /> My Profile
+                  </Link>
+                  <button className="user-dropdown-item" type="button" disabled>
+                    <Settings size={16} /> Settings
+                  </button>
+                  <button
+                    className="user-dropdown-item danger"
+                    type="button"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={16} /> Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="app-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
+}
+
+function breadcrumbFor(pathname) {
+  const map = [
+    { prefix: "/employees", label: "Employees" },
+    { prefix: "/departments", label: "Departments" },
+    { prefix: "/schedules", label: "Working Schedules" },
+    { prefix: "/contracts", label: "Contracts" },
+    { prefix: "/attendance", label: "Attendance" },
+    { prefix: "/time-off", label: "Time Off" },
+    { prefix: "/payroll", label: "Payroll" },
+    { prefix: "/users", label: "User Management" },
+    { prefix: "/my-profile", label: "My Profile" },
+  ];
+  const match = map.find((m) => pathname.startsWith(m.prefix));
+  return match ? match.label : "Dashboard";
 }

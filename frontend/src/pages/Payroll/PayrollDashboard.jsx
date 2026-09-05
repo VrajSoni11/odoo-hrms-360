@@ -11,6 +11,13 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertTriangle,
+  Banknote,
+  CalendarCheck,
+  FileText,
+  Wallet,
+} from "lucide-react";
+import {
   getAttendanceOverview,
   getDashboardAlerts,
   getDashboardKpis,
@@ -19,26 +26,18 @@ import {
   getSalaryTrend,
   getTimeoffOverview,
 } from "../../api/dashboard.api";
+import StatCard from "../../components/ui/StatCard.jsx";
+import StatusBadge from "../../components/ui/StatusBadge.jsx";
+import { SkeletonStatGrid } from "../../components/ui/Skeleton.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
 
-function KpiCard({ label, value }) {
-  return (
-    <div className="card">
-      <div className="field-label">{label}</div>
-      <strong style={{ fontSize: 24 }}>{value}</strong>
-    </div>
-  );
-}
 function Panel({ title, children }) {
   return (
-    <section className="card" style={{ maxWidth: "none", flex: 1 }}>
+    <section className="panel">
       <h2>{title}</h2>
       {children}
     </section>
   );
-}
-
-function EmptyState({ text }) {
-  return <p className="dashboard-empty">{text}</p>;
 }
 
 export default function PayrollDashboard() {
@@ -77,37 +76,29 @@ export default function PayrollDashboard() {
   }, [filters]);
   const change = (field) => (e) =>
     setFilters({ ...filters, [field]: e.target.value });
+
   return (
-    <div className="page" style={{ maxWidth: 1200 }}>
+    <div className="page" style={{ maxWidth: 1240 }}>
       <div className="page-header">
-        <h1>Payroll Dashboard</h1>
+        <div>
+          <div className="page-eyebrow">Finance</div>
+          <h1>Payroll Dashboard</h1>
+          <div className="page-subtitle">Salary spend, attendance and time-off at a glance</div>
+        </div>
       </div>
-      <div
-        className="card"
-        style={{ maxWidth: "none", display: "flex", gap: 12 }}
-      >
-        <label>
+
+      <div className="filter-bar">
+        <label style={{ marginBottom: 0 }}>
           Period
-          <input
-            type="month"
-            value={filters.period}
-            onChange={change("period")}
-          />
+          <input type="month" value={filters.period} onChange={change("period")} />
         </label>
-        <label>
+        <label style={{ marginBottom: 0 }}>
           Department
-          <input
-            value={filters.departmentId}
-            placeholder="Department ID"
-            onChange={change("departmentId")}
-          />
+          <input value={filters.departmentId} placeholder="Department ID" onChange={change("departmentId")} />
         </label>
-        <label>
+        <label style={{ marginBottom: 0 }}>
           Employee type
-          <select
-            value={filters.employeeType}
-            onChange={change("employeeType")}
-          >
+          <select value={filters.employeeType} onChange={change("employeeType")}>
             <option value="">All</option>
             <option value="full_time">Full-Time</option>
             <option value="part_time">Part-Time</option>
@@ -115,52 +106,65 @@ export default function PayrollDashboard() {
           </select>
         </label>
       </div>
+
       {error && <div className="form-error">{error}</div>}
-      <div style={{ display: "flex", gap: 12, margin: "16px 0" }}>
-        <KpiCard
-          label="Total Net Salary Paid"
-          value={data.kpis ? data.kpis.totalNetSalaryPaid.toFixed(2) : "..."}
-        />
-        <KpiCard
-          label="Payslips Generated"
-          value={data.kpis?.payslipsGenerated ?? "..."}
-        />
-        <KpiCard
-          label="Average Salary"
-          value={data.kpis ? data.kpis.averageSalary.toFixed(2) : "..."}
-        />
-        <KpiCard
-          label="Approved Time Off"
-          value={data.kpis?.approvedTimeOff ?? "..."}
-        />
-      </div>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+
+      {!data.kpis ? (
+        <SkeletonStatGrid count={4} />
+      ) : (
+        <div className="stat-grid">
+          <StatCard
+            icon={Banknote}
+            tone="success"
+            label="Total Net Salary Paid"
+            value={data.kpis.totalNetSalaryPaid.toFixed(2)}
+          />
+          <StatCard
+            icon={FileText}
+            tone="info"
+            label="Payslips Generated"
+            value={data.kpis.payslipsGenerated ?? 0}
+          />
+          <StatCard
+            icon={Wallet}
+            label="Average Salary"
+            value={data.kpis.averageSalary.toFixed(2)}
+          />
+          <StatCard
+            icon={CalendarCheck}
+            tone="warning"
+            label="Approved Time Off"
+            value={data.kpis.approvedTimeOff ?? 0}
+          />
+        </div>
+      )}
+
+      <div className="panel-grid">
         <Panel title="Salary Cost by Department">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data.salary || []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="department" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="net" fill="#0271E4" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="department" stroke="var(--text-faint)" fontSize={12} />
+              <YAxis stroke="var(--text-faint)" fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid var(--border)' }} />
+              <Bar dataKey="net" fill="var(--indigo-600)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Panel>
         <Panel title="Monthly Net Salary Trend">
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={data.trend || []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="net" stroke="#2F8F4E" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="month" stroke="var(--text-faint)" fontSize={12} />
+              <YAxis stroke="var(--text-faint)" fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid var(--border)' }} />
+              <Line type="monotone" dataKey="net" stroke="var(--success)" strokeWidth={2.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
       </div>
-      <div
-        style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}
-      >
+
+      <div className="panel-grid" style={{ marginTop: 16 }}>
         <Panel title="Attendance Overview">
           {data.attendance ? (
             <div className="dashboard-stat-grid">
@@ -172,7 +176,7 @@ export default function PayrollDashboard() {
               ))}
             </div>
           ) : (
-            <EmptyState text="No attendance data for this period." />
+            <div className="dashboard-empty">No attendance data for this period.</div>
           )}
         </Panel>
         <Panel title="Time Off Overview">
@@ -192,7 +196,7 @@ export default function PayrollDashboard() {
               </div>
             </div>
           ) : (
-            <EmptyState text="No time-off data for this period." />
+            <div className="dashboard-empty">No time-off data for this period.</div>
           )}
         </Panel>
         <Panel title="Department Overview">
@@ -210,29 +214,27 @@ export default function PayrollDashboard() {
                   <tr key={department.department}>
                     <td>{department.department}</td>
                     <td>{department.headcount}</td>
-                    <td>
-                      {Number(department.salaryExpenditure).toLocaleString()}
-                    </td>
+                    <td>{Number(department.salaryExpenditure).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <EmptyState text="No department data for this period." />
+            <div className="dashboard-empty">No department data for this period.</div>
           )}
         </Panel>
         <Panel title="Alerts">
           {data.alerts?.length ? (
-            data.alerts.map((alert) => (
-              <p key={alert.id}>
-                <span className={`badge badge-${alert.severity}`}>
-                  {alert.severity}
-                </span>{" "}
-                {alert.message}
-              </p>
-            ))
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {data.alerts.map((alert) => (
+                <div key={alert.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <StatusBadge status={alert.severity} />
+                  <span style={{ fontSize: 13 }}>{alert.message}</span>
+                </div>
+              ))}
+            </div>
           ) : (
-            <EmptyState text="No unresolved alerts." />
+            <EmptyState icon={AlertTriangle} title="No unresolved alerts" description="You're all caught up." />
           )}
         </Panel>
       </div>

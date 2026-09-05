@@ -6,6 +6,7 @@ import {
   getTimeOffTypes,
 } from "../../api/timeoff.api";
 import { getEmployees } from "../../api/employees.api";
+import StatusBadge from "../../components/ui/StatusBadge.jsx";
 
 export default function TimeOffAllocations() {
   const [allocations, setAllocations] = useState([]);
@@ -46,7 +47,10 @@ export default function TimeOffAllocations() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Time Off Allocations</h1>
+        <div>
+          <div className="page-eyebrow">Time Off</div>
+          <h1>Time Off Allocations</h1>
+        </div>
       </div>
       <form className="card" onSubmit={submit}>
         <label>
@@ -121,11 +125,11 @@ export default function TimeOffAllocations() {
               <td>{a.timeOffType?.name}</td>
               <td>{String(a.allocatedAmount ?? 0)}</td>
               <td>{String(a.remainingAmount ?? 0)}</td>
-              <td>{a.status}</td>
-              <td>
+              <td><StatusBadge status={a.status} /></td>
+              <td className="row-actions">
                 {a.status === "draft" && (
                   <button
-                    className="btn btn-small"
+                    className="btn btn-small btn-primary"
                     onClick={() => approveAllocation(a.id).then(load)}
                   >
                     Approve
