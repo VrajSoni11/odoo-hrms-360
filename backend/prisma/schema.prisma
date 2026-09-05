@@ -54,6 +54,7 @@ model Employee {
 
   user      User?
   contracts Contract[]
+  attendance Attendance[]
 
   @@map("employees")
 }
@@ -66,6 +67,7 @@ model User {
   role         Role      @relation(fields: [roleId], references: [id])
   employeeId   Int?      @unique
   employee     Employee? @relation(fields: [employeeId], references: [id])
+  attendanceCorrections Attendance[] @relation("AttendanceCorrections")
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
 
@@ -117,3 +119,22 @@ model Contract {
 
   @@map("contracts")
 }
+
+model Attendance {
+  id            Int       @id @default(autoincrement())
+  employeeId    Int
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  checkIn       DateTime
+  checkOut      DateTime?
+  workedHours   Decimal?  @db.Decimal(8, 2)
+  status        String    @default("checked_in")
+  source        String    @default("self")
+  note          String?
+  correctedById Int?
+  correctedBy   User?     @relation("AttendanceCorrections", fields: [correctedById], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@index([employeeId, checkIn])
+  @@map("attendance")
+}
+
