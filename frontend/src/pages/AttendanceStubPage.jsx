@@ -6,3 +6,4 @@ export default function AttendanceStubPage() {
     </div>
   );
 }
+//basic page for attendance, will be updated in phase 2 with check-in/out and history
