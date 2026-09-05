@@ -55,6 +55,8 @@ model Employee {
   user      User?
   contracts Contract[]
   attendance Attendance[]
+  timeOffAllocations TimeOffAllocation[]
+  timeOffRequests    TimeOffRequest[]
 
   @@map("employees")
 }
@@ -68,6 +70,8 @@ model User {
   employeeId   Int?      @unique
   employee     Employee? @relation(fields: [employeeId], references: [id])
   attendanceCorrections Attendance[] @relation("AttendanceCorrections")
+  allocationApprovals TimeOffAllocation[] @relation("AllocationApprovals")
+  timeOffDecisions    TimeOffRequest[]    @relation("TimeOffDecisions")
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
 
@@ -136,5 +140,61 @@ model Attendance {
 
   @@index([employeeId, checkIn])
   @@map("attendance")
+}
+
+model TimeOffType {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  unit              String              @default("days")
+  requiresAllocation Boolean            @default(true)
+  requiresApproval  Boolean             @default(true)
+  affectsPayroll    Boolean             @default(false)
+  allocations       TimeOffAllocation[]
+  requests          TimeOffRequest[]
+  createdAt         DateTime            @default(now())
+
+  @@map("time_off_types")
+}
+
+model TimeOffAllocation {
+  id              Int        @id @default(autoincrement())
+  employeeId      Int
+  employee        Employee   @relation(fields: [employeeId], references: [id])
+  timeOffTypeId   Int
+  timeOffType     TimeOffType @relation(fields: [timeOffTypeId], references: [id])
+  allocatedAmount Decimal    @db.Decimal(8, 2)
+  remainingAmount Decimal    @db.Decimal(8, 2)
+  status          String     @default("draft")
+  approvedById    Int?
+  approvedBy      User?      @relation("AllocationApprovals", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  createdAt       DateTime   @default(now())
+
+  requests TimeOffRequest[]
+
+  @@index([employeeId, timeOffTypeId, status])
+  @@map("time_off_allocations")
+}
+
+model TimeOffRequest {
+  id              Int               @id @default(autoincrement())
+  employeeId      Int
+  employee        Employee           @relation(fields: [employeeId], references: [id])
+  timeOffTypeId   Int
+  timeOffType     TimeOffType        @relation(fields: [timeOffTypeId], references: [id])
+  allocationId    Int?
+  allocation      TimeOffAllocation? @relation(fields: [allocationId], references: [id])
+  startDate       DateTime           @db.Date
+  endDate         DateTime           @db.Date
+  requestedAmount Decimal            @db.Decimal(8, 2)
+  reason          String?
+  status          String             @default("pending")
+  decidedById     Int?
+  decidedBy       User?              @relation("TimeOffDecisions", fields: [decidedById], references: [id])
+  decidedAt       DateTime?
+  createdAt       DateTime           @default(now())
+
+  @@index([employeeId, status])
+  @@map("time_off_requests")
 }
 

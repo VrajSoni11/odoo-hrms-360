@@ -68,13 +68,14 @@ export default function AppShell() {
               <span className="nav-link">Time Off ▾</span>
               {timeOffMenuOpen && (
                 <div className="nav-dropdown-menu">
-                  <span className="nav-dropdown-stub">Requests (Phase 3)</span>
-                  <span className="nav-dropdown-stub">
-                    Allocations (Phase 3)
-                  </span>
-                  <span className="nav-dropdown-stub">
-                    Time Off Types (Phase 3)
-                  </span>
+                  <Link to="/time-off/my-requests">My Requests</Link>
+                  {canSee(user.role, "employees") && (
+                    <>
+                      <Link to="/time-off/approvals">Approvals</Link>
+                      <Link to="/time-off/allocations">Allocations</Link>
+                      <Link to="/time-off/types">Time Off Types</Link>
+                    </>
+                  )}
                 </div>
               )}
             </div>

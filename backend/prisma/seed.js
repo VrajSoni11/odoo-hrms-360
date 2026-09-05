@@ -25,6 +25,10 @@ const ROLE_NAMES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manage
 
 async function main() {
   console.log('Wiping existing seed-relevant data...');
+  await prisma.timeOffRequest.deleteMany();
+  await prisma.timeOffAllocation.deleteMany();
+  await prisma.timeOffType.deleteMany();
+  await prisma.attendance.deleteMany();
   await prisma.contract.deleteMany();
   await prisma.scheduleLine.deleteMany();
   await prisma.workingSchedule.deleteMany();
@@ -192,6 +196,26 @@ async function main() {
       },
     });
   }
+
+  console.log('Creating time-off seed data...');
+  const annualLeave = await prisma.timeOffType.create({
+    data: {
+      name: 'Annual Leave',
+      unit: 'days',
+      requiresAllocation: true,
+      requiresApproval: true,
+      affectsPayroll: false,
+    },
+  });
+  await prisma.timeOffAllocation.create({
+    data: {
+      employeeId: sneha.id,
+      timeOffTypeId: annualLeave.id,
+      allocatedAmount: 20,
+      remainingAmount: 20,
+      status: 'approved',
+    },
+  });
 
   console.log('Creating contracts...');
   // Priya: a closed historical contract, then a current active one

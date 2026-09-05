@@ -14,6 +14,10 @@ import DepartmentsPage from "./pages/Departments/DepartmentsPage.jsx";
 import UsersPage from "./pages/Users/UsersPage.jsx";
 import SchedulesPage from "./pages/Schedules/SchedulesPage.jsx";
 import ContractsPage from "./pages/Contracts/ContractsPage.jsx";
+import MyTimeOffRequests from "./pages/TimeOff/MyTimeOffRequests.jsx";
+import TimeOffApprovals from "./pages/TimeOff/TimeOffApprovals.jsx";
+import TimeOffAllocations from "./pages/TimeOff/TimeOffAllocations.jsx";
+import TimeOffTypes from "./pages/TimeOff/TimeOffTypes.jsx";
 
 const MANAGE_ROLES = [
   "Admin",
@@ -46,6 +50,31 @@ export default function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/my-profile" element={<MyProfile />} />
         <Route path="/attendance" element={<AttendancePage />} />
+        <Route path="/time-off/my-requests" element={<MyTimeOffRequests />} />
+        <Route
+          path="/time-off/approvals"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "HR Manager"]}>
+              <TimeOffApprovals />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/time-off/allocations"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "HR Manager"]}>
+              <TimeOffAllocations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/time-off/types"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "HR Manager"]}>
+              <TimeOffTypes />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/employees"

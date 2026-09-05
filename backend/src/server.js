@@ -9,6 +9,9 @@ const usersRoutes = require('./routes/users.routes');
 const schedulesRoutes = require('./routes/schedules.routes');
 const contractsRoutes = require('./routes/contracts.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
+const timeOffTypesRoutes = require('./routes/timeOffTypes.routes');
+const timeOffAllocationsRoutes = require('./routes/timeOffAllocations.routes');
+const timeOffRequestsRoutes = require('./routes/timeOffRequests.routes');
 
 const app = express();
 
@@ -25,6 +28,9 @@ app.use('/api/users', usersRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/contracts', contractsRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/time-off-types', timeOffTypesRoutes);
+app.use('/api/time-off-allocations', timeOffAllocationsRoutes);
+app.use('/api/time-off-requests', timeOffRequestsRoutes);
 
 // Central error handler (catches anything thrown outside try/catch blocks)
 app.use((err, req, res, next) => {
