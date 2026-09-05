@@ -60,6 +60,7 @@ model Employee {
   payrunEmployees    PayrunEmployee[]
   payslips           Payslip[]
   payrollWarnings    PayrollWarning[]
+  emailDeliveryLogs  EmailDeliveryLog[]
 
   @@map("employees")
 }
@@ -255,6 +256,7 @@ model Payrun {
   employees        PayrunEmployee[]
   payslips         Payslip[]
   warnings         PayrollWarning[]
+  emailDeliveryLogs EmailDeliveryLog[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -290,6 +292,7 @@ model Payslip {
   lines        PayslipLine[]
   approvedById Int?
   approvedBy   User?         @relation("PayslipApprovals", fields: [approvedById], references: [id])
+  emailDeliveryLogs EmailDeliveryLog[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -327,6 +330,25 @@ model PayrollWarning {
 
   @@index([payrunId, resolved, severity])
   @@map("payroll_warnings")
+}
+
+model EmailDeliveryLog {
+  id             Int       @id @default(autoincrement())
+  payslipId      Int
+  payslip        Payslip   @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  employeeId     Int
+  employee       Employee  @relation(fields: [employeeId], references: [id])
+  payrunId       Int
+  payrun         Payrun    @relation(fields: [payrunId], references: [id], onDelete: Cascade)
+  recipientEmail String
+  status         String
+  previewUrl     String?
+  errorMessage   String?
+  sentAt         DateTime  @default(now())
+
+  @@index([payrunId, status])
+  @@index([payslipId])
+  @@map("email_delivery_logs")
 }
 
 model RefreshToken {

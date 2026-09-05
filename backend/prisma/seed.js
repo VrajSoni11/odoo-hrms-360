@@ -28,6 +28,7 @@ async function main() {
   await prisma.timeOffRequest.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.payrollWarning.deleteMany();
+  await prisma.emailDeliveryLog.deleteMany();
   await prisma.payslipLine.deleteMany();
   await prisma.payslip.deleteMany();
   await prisma.payrunEmployee.deleteMany();

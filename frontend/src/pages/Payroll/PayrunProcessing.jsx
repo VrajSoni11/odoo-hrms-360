@@ -5,6 +5,7 @@ import {
   getPayrun,
   markPayrunPaid,
   resolveWarning,
+  sendPayslips,
   validatePayrun,
 } from "../../api/payroll.api";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -15,6 +16,8 @@ export default function PayrunProcessing() {
   const manager = ["Admin", "HR Payroll Manager"].includes(user.role);
   const [run, setRun] = useState(null);
   const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState(null);
   const load = () =>
     getPayrun(id)
       .then(({ data }) => setRun(data))
@@ -33,7 +36,21 @@ export default function PayrunProcessing() {
       setError(err.response?.data?.error || "Payrun action failed");
     }
   }
+  async function handleSendPayslips() {
+    setError("");
+    setSendResult(null);
+    setSending(true);
+    try {
+      const { data } = await sendPayslips(id);
+      setSendResult(data);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to send payslips");
+    } finally {
+      setSending(false);
+    }
+  }
   if (!run) return <div className="page">Loading payrun...</div>;
+  const canSend = ["validated", "paid"].includes(run.status);
   return (
     <div className="page">
       <div className="page-header">
@@ -67,10 +84,69 @@ export default function PayrunProcessing() {
         >
           Mark Paid
         </button>
-        <button className="btn btn-ghost" disabled>
-          Send Payslips (Coming soon)
+        <button
+          className="btn btn-primary"
+          disabled={!canSend || sending}
+          onClick={handleSendPayslips}
+        >
+          {sending ? "Sending..." : "Send Payslips"}
         </button>
       </div>
+
+      {sendResult && (
+        <section style={{ marginTop: "24px" }}>
+          <div className="page-header">
+            <h2>Email Delivery Results</h2>
+            <span>
+              Sent: <strong>{sendResult.sent}</strong> | Failed:{" "}
+              <strong>{sendResult.failed}</strong>
+            </span>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sendResult.details?.map((detail, index) => (
+                <tr key={index}>
+                  <td>{detail.employeeName}</td>
+                  <td>
+                    {detail.status === "sent" ? (
+                      <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                        ✓ Sent
+                      </span>
+                    ) : (
+                      <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                        ✗ Failed
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {detail.status === "sent" && detail.previewUrl ? (
+                      <a
+                        href={detail.previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Preview email
+                      </a>
+                    ) : (
+                      <span style={{ color: "#dc2626" }}>
+                        {detail.errorMessage || "Unknown error"}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <h2>Warnings</h2>
       <table className="data-table">
         <tbody>

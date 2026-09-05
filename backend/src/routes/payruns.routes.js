@@ -3,6 +3,9 @@ const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { computeSalary } = require('../lib/salaryEngine');
 const { resolveContract, workedDays, approvedLeaveDays, eligibleEmployees } = require('../lib/payrollHelpers');
+const payslipTemplate = require('../templates/payslip.template');
+const { renderPayslipPdf } = require('../lib/payslipPdf');
+const { sendPayslipEmail } = require('../lib/mailer');
 
 const router = express.Router();
 const PAYROLL_ROLES = ['Admin', 'HR Payroll User', 'HR Payroll Manager'];
@@ -21,6 +24,31 @@ router.get('/:id', async (req, res) => {
   const payrun = await prisma.payrun.findUnique({ where: { id: Number(req.params.id) }, include: { ...summary, employees: { include: { employee: true } }, payslips: { include: { employee: true }, orderBy: { employeeId: 'asc' } }, warnings: { include: { employee: true }, orderBy: { severity: 'asc' } } } });
   if (!payrun) return res.status(404).json({ error: 'Payrun not found' });
   res.json(payrun);
+});
+
+router.post('/:id/send-payslips', async (req, res) => {
+  const payrunId = Number(req.params.id);
+  const payrun = await prisma.payrun.findUnique({
+    where: { id: payrunId },
+    include: { payslips: { include: { employee: true, contract: true, payrun: { include: { salaryStructure: true } }, lines: { orderBy: { sequence: 'asc' }, include: { salaryRule: true } } } } },
+  });
+  if (!payrun) return res.status(404).json({ error: 'Payrun not found' });
+  if (!['validated', 'paid'].includes(payrun.status)) return res.status(409).json({ error: 'Payslips can only be sent for validated or paid payruns' });
+  const details = [];
+  for (const payslip of payrun.payslips) {
+    let delivery = { success: false, previewUrl: null, error: 'Email delivery failed' };
+    try {
+      if (!payslip.employee?.workEmail) delivery.error = 'Employee has no work email address';
+      else {
+        const pdf = await renderPayslipPdf(payslipTemplate(payslip));
+        const periodLabel = `${new Date(payslip.periodStart).toISOString().slice(0, 10)} to ${new Date(payslip.periodEnd).toISOString().slice(0, 10)}`;
+        delivery = await sendPayslipEmail({ to: payslip.employee.workEmail, employeeName: payslip.employee.name, periodLabel, pdfBuffer: pdf });
+      }
+    } catch (error) { delivery = { success: false, previewUrl: null, error: error.message || 'Email delivery failed' }; }
+    await prisma.emailDeliveryLog.create({ data: { payslipId: payslip.id, employeeId: payslip.employeeId, payrunId, recipientEmail: payslip.employee?.workEmail || '', status: delivery.success ? 'sent' : 'failed', previewUrl: delivery.previewUrl, errorMessage: delivery.error, sentAt: new Date() } });
+    details.push({ employeeName: payslip.employee?.name || `Employee #${payslip.employeeId}`, status: delivery.success ? 'sent' : 'failed', previewUrl: delivery.previewUrl, errorMessage: delivery.error });
+  }
+  res.json({ sent: details.filter((detail) => detail.status === 'sent').length, failed: details.filter((detail) => detail.status === 'failed').length, details });
 });
 
 router.post('/', async (req, res) => {
