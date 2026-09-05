@@ -112,7 +112,9 @@ export default function AppShell() {
 
       <aside className={`sidebar${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-brand-mark">P360</div>
+          <div className="sidebar-brand-mark">
+            <img src="/logo.png" alt="PeoplePay360 logo" />
+          </div>
           <div className="sidebar-brand-text">
             PeoplePay360
             <small>HR &amp; Payroll</small>
@@ -163,9 +165,7 @@ export default function AppShell() {
                 <Link className="sidebar-link" to="/payroll/dashboard">Dashboard</Link>
                 <Link className="sidebar-link" to="/payroll/payruns">Payruns</Link>
                 <Link className="sidebar-link" to="/payroll/salary-structures">Salary Structures</Link>
-                {user.role === "Admin" && (
-                  <Link className="sidebar-link" to="/payroll/salary-rules">Salary Rules</Link>
-                )}
+                <Link className="sidebar-link" to="/payroll/salary-rules">Salary Rules</Link>
                 <Link className="sidebar-link" to="/payroll/payslips">Payslips</Link>
               </NavGroup>
             </>

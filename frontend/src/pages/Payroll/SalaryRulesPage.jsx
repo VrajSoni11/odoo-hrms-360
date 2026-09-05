@@ -12,10 +12,11 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { AlertCircle, Calculator, ListTree, Pencil, Plus, Trash2, X } from "lucide-react";
 import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
+import { formatMoney } from "../../utils/format.js";
 
-// This page is Admin-only (see App.jsx route guard) — HR Payroll User and
-// HR Payroll Manager no longer have access to Salary Rules.
-const WRITE_ROLES = ["Admin"];
+// Visible to all Payroll roles (see App.jsx route guard). HR Payroll User
+// can view rules read-only; Admin and HR Payroll Manager can edit them.
+const WRITE_ROLES = ["Admin", "HR Payroll Manager"];
 const initial = {
   name: "",
   code: "",
@@ -286,14 +287,16 @@ export default function SalaryRulesPage() {
         </button>
         {preview && (
           <table className="data-table" style={{ marginTop: 14 }}>
+            <colgroup>
+              <col />
+              <col style={{ width: 160 }} />
+            </colgroup>
             <tbody>
               {preview.lines.map((line) => (
                 <tr key={line.code}>
                   <td>{line.code}</td>
-                  <td>
-                    {line.amount === null
-                      ? line.error
-                      : Number(line.amount).toFixed(2)}
+                  <td className="amount">
+                    {line.amount === null ? line.error : formatMoney(line.amount)}
                   </td>
                 </tr>
               ))}

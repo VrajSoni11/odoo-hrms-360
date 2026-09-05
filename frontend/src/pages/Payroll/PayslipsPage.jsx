@@ -5,6 +5,7 @@ import { getPayslips } from "../../api/payroll.api";
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
 import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
+import { formatMoney } from "../../utils/format.js";
 
 export default function PayslipsPage() {
   const [slips, setSlips] = useState([]);
@@ -44,8 +45,8 @@ export default function PayslipsPage() {
               <th>Employee</th>
               <th>Payrun</th>
               <th>Period</th>
-              <th>Gross</th>
-              <th>Net</th>
+              <th className="amount">Gross</th>
+              <th className="amount">Net</th>
               <th>Status</th>
               <th />
             </tr>
@@ -59,8 +60,8 @@ export default function PayslipsPage() {
                   {String(slip.periodStart).slice(0, 10)} to{" "}
                   {String(slip.periodEnd).slice(0, 10)}
                 </td>
-                <td>{String(slip.grossAmount)}</td>
-                <td>{String(slip.netAmount)}</td>
+                <td className="amount">{formatMoney(slip.grossAmount)}</td>
+                <td className="amount">{formatMoney(slip.netAmount)}</td>
                 <td><StatusBadge status={slip.status} /></td>
                 <td>
                   <Link to={`/payroll/payslips/${slip.id}`}>View</Link>

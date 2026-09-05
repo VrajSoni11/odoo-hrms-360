@@ -50,6 +50,32 @@ async function findOverlappingActiveContract({ employeeId, startDate, endDate, s
   }) || null;
 }
 
+/**
+ * Turns a thrown error from a contract create/update into a friendly,
+ * correctly-coded API response instead of a blanket 500.
+ *
+ *  - 23P01 (Postgres exclusion_violation) -> the overlap EXCLUDE constraint
+ *    from afterMigrate.js caught something our JS pre-check missed.
+ *  - P2003 (Prisma FK constraint failed) -> departmentId/scheduleId/
+ *    salaryStructureId/employeeId points at a row that doesn't exist.
+ *  - P2025 (Prisma "record not found") -> updating/deleting a contract
+ *    that no longer exists.
+ *  - Anything else falls back to the provided generic message.
+ */
+function mapContractError(err, fallbackMessage) {
+  if (err.code === '23P01' || (err.meta && String(err.meta.message || '').includes('exclusion'))) {
+    return { status: 409, error: 'Overlapping active contract rejected by the database constraint.' };
+  }
+  if (err.code === 'P2003') {
+    const field = err.meta?.field_name || err.meta?.constraint || 'a related record';
+    return { status: 400, error: `Invalid reference for ${field} — please re-check the selected department, schedule or salary structure.` };
+  }
+  if (err.code === 'P2025') {
+    return { status: 404, error: 'Contract not found' };
+  }
+  return { status: 500, error: fallbackMessage };
+}
+
 // GET /api/contracts?employeeId=&state=
 router.get('/', async (req, res) => {
   const { employeeId, state } = req.query;
@@ -64,19 +90,14 @@ router.get('/', async (req, res) => {
   res.json(contracts);
 });
 
-router.get('/:id', async (req, res) => {
-  const contract = await prisma.contract.findUnique({
-    where: { id: Number(req.params.id) },
-    include: CONTRACT_INCLUDE,
-  });
-  if (!contract) return res.status(404).json({ error: 'Contract not found' });
-  res.json(contract);
-});
-
 /**
  * GET /api/contracts/active-for-period?employeeId=&start=&end=
  * Helper used by later phases (Payroll) to resolve the contract applicable
  * to a given period. Exposed now so Phase 5 can reuse it directly.
+ *
+ * NOTE: this MUST be registered before GET /:id — otherwise Express would
+ * match "active-for-period" as the :id wildcard and this handler would
+ * never run.
  */
 router.get('/active-for-period', async (req, res) => {
   const { employeeId, start, end } = req.query;
@@ -106,6 +127,15 @@ router.get('/active-for-period', async (req, res) => {
   res.json(matches[0]);
 });
 
+router.get('/:id', async (req, res) => {
+  const contract = await prisma.contract.findUnique({
+    where: { id: Number(req.params.id) },
+    include: CONTRACT_INCLUDE,
+  });
+  if (!contract) return res.status(404).json({ error: 'Contract not found' });
+  res.json(contract);
+});
+
 router.post('/', requireRole(...CREATE_ROLES), async (req, res) => {
   try {
     const { employeeId, departmentId, jobPosition, scheduleId, salaryStructureId, startDate, endDate, wage, state } = req.body;
@@ -128,9 +158,9 @@ router.post('/', requireRole(...CREATE_ROLES), async (req, res) => {
     const contract = await prisma.contract.create({
       data: {
         employeeId: Number(employeeId),
-        departmentId: departmentId || null,
+        departmentId: departmentId ? Number(departmentId) : null,
         jobPosition: jobPosition || null,
-        scheduleId: scheduleId || null,
+        scheduleId: scheduleId ? Number(scheduleId) : null,
         salaryStructureId: salaryStructureId ? Number(salaryStructureId) : null,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
@@ -142,11 +172,8 @@ router.post('/', requireRole(...CREATE_ROLES), async (req, res) => {
     res.status(201).json(contract);
   } catch (err) {
     console.error(err);
-    // 23P01 = exclusion_violation — the DB constraint caught something our pre-check missed
-    if (err.code === '23P01' || (err.meta && String(err.meta.message || '').includes('exclusion'))) {
-      return res.status(409).json({ error: 'Overlapping active contract rejected by the database constraint.' });
-    }
-    res.status(500).json({ error: 'Could not create contract' });
+    const { status, error } = mapContractError(err, 'Could not create contract');
+    res.status(status).json({ error });
   }
 });
 
@@ -172,9 +199,9 @@ router.put('/:id', requireRole(...CREATE_ROLES), async (req, res) => {
       where: { id },
       data: {
         employeeId: Number(employeeId),
-        departmentId: departmentId || null,
+        departmentId: departmentId ? Number(departmentId) : null,
         jobPosition: jobPosition || null,
-        scheduleId: scheduleId || null,
+        scheduleId: scheduleId ? Number(scheduleId) : null,
         salaryStructureId: salaryStructureId ? Number(salaryStructureId) : null,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
@@ -186,10 +213,8 @@ router.put('/:id', requireRole(...CREATE_ROLES), async (req, res) => {
     res.json(contract);
   } catch (err) {
     console.error(err);
-    if (err.code === '23P01' || (err.meta && String(err.meta.message || '').includes('exclusion'))) {
-      return res.status(409).json({ error: 'Overlapping active contract rejected by the database constraint.' });
-    }
-    res.status(500).json({ error: 'Could not update contract' });
+    const { status, error } = mapContractError(err, 'Could not update contract');
+    res.status(status).json({ error });
   }
 });
 

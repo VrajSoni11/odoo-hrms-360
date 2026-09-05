@@ -28,6 +28,7 @@ import {
 } from "../../api/dashboard.api";
 import StatCard from "../../components/ui/StatCard.jsx";
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
+import { formatMoney } from "../../utils/format.js";
 import { SkeletonStatGrid } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
 
@@ -206,7 +207,7 @@ export default function PayrollDashboard() {
                 <tr>
                   <th>Department</th>
                   <th>Headcount</th>
-                  <th>Salary expenditure</th>
+                  <th className="amount">Salary expenditure</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,7 +215,7 @@ export default function PayrollDashboard() {
                   <tr key={department.department}>
                     <td>{department.department}</td>
                     <td>{department.headcount}</td>
-                    <td>{Number(department.salaryExpenditure).toLocaleString()}</td>
+                    <td className="amount">{formatMoney(department.salaryExpenditure)}</td>
                   </tr>
                 ))}
               </tbody>

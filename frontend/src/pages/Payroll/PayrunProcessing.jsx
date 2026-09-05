@@ -18,6 +18,7 @@ import {
   validatePayrun,
 } from "../../api/payroll.api";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { formatMoney } from "../../utils/format.js";
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
 
@@ -194,12 +195,20 @@ export default function PayrunProcessing() {
       <div className="section-title" style={{ marginTop: 4 }}>Payslips</div>
       {run.payslips?.length ? (
         <table className="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th className="amount">Gross</th>
+              <th className="amount">Net</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
             {run.payslips.map((slip) => (
               <tr key={slip.id}>
                 <td>{slip.employee?.name}</td>
-                <td>{String(slip.grossAmount)}</td>
-                <td>{String(slip.netAmount)}</td>
+                <td className="amount">{formatMoney(slip.grossAmount)}</td>
+                <td className="amount">{formatMoney(slip.netAmount)}</td>
                 <td>
                   <Link to={`/payroll/payslips/${slip.id}`}>View</Link>
                 </td>

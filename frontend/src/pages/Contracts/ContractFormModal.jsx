@@ -206,10 +206,15 @@ export default function ContractFormModal({
           {error && (
             <div className="form-error">
               {error}
-              <div className="form-error-hint">
-                Only one ACTIVE contract per employee per date range is allowed
-                — this is enforced at the database level.
-              </div>
+              {/* Only show the overlap-constraint hint when the error is
+                  actually about an overlapping active contract — showing it
+                  unconditionally was misleading users on unrelated errors. */}
+              {/active contract/i.test(error) && (
+                <div className="form-error-hint">
+                  Only one ACTIVE contract per employee per date range is
+                  allowed — this is enforced at the database level.
+                </div>
+              )}
             </div>
           )}
 

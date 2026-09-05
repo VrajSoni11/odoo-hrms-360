@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { AlertCircle, Printer } from "lucide-react";
 import { downloadPayslipPdf, getPayslip } from "../../api/payroll.api";
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
+import { formatMoney } from "../../utils/format.js";
 
 export default function PayslipDetail() {
   const { id } = useParams();
@@ -70,11 +71,15 @@ export default function PayslipDetail() {
         <section key={category} style={{ marginTop: 20 }}>
           <div className="section-title">{category}</div>
           <table className="data-table">
+            <colgroup>
+              <col />
+              <col style={{ width: 160 }} />
+            </colgroup>
             <tbody>
               {lines.map((line) => (
                 <tr key={line.id}>
                   <td>{line.ruleName}</td>
-                  <td>{String(line.amount)}</td>
+                  <td className="amount">{formatMoney(line.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -82,8 +87,8 @@ export default function PayslipDetail() {
         </section>
       ))}
       <div className="card" style={{ marginTop: 20, maxWidth: 'none' }}>
-        <div className="field-row"><span className="field-label">Gross</span><strong>{String(slip.grossAmount)}</strong></div>
-        <div className="field-row"><span className="field-label">Net</span><strong>{String(slip.netAmount)}</strong></div>
+        <div className="field-row"><span className="field-label">Gross</span><strong className="amount">{formatMoney(slip.grossAmount)}</strong></div>
+        <div className="field-row"><span className="field-label">Net</span><strong className="amount">{formatMoney(slip.netAmount)}</strong></div>
       </div>
     </div>
   );

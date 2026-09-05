@@ -32,7 +32,9 @@ export default function Login() {
     <div className="login-page">
       <div className="login-branding">
         <div className="login-branding-top">
-          <div className="sidebar-brand-mark">P360</div>
+          <div className="sidebar-brand-mark">
+            <img src="/logo.png" alt="PeoplePay360 logo" />
+          </div>
           <div className="sidebar-brand-text">
             PeoplePay360
             <small>HR &amp; Payroll</small>

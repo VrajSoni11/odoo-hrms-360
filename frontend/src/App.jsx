@@ -34,8 +34,9 @@ const MANAGE_ROLES = [
   "HR Payroll Manager",
 ];
 const PAYROLL_ROLES = ["Admin", "HR Payroll User", "HR Payroll Manager"];
-// Salary Rules are Admin-only.
-const SALARY_RULES_ROLES = ["Admin"];
+// Salary Rules are visible to the same roles as the rest of Payroll;
+// write access is further restricted inside SalaryRulesPage/the API.
+const SALARY_RULES_ROLES = PAYROLL_ROLES;
 // Only Admin / HR Manager can create or edit contracts; other payroll
 // roles can still view the Contracts list.
 const CONTRACT_WRITE_ROLES = ["Admin", "HR Manager"];

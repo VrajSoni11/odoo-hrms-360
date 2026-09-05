@@ -4,11 +4,12 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const { computeSalary, ALLOWED_CATEGORIES, ALLOWED_METHODS } = require('../lib/salaryEngine');
 
 const router = express.Router();
-// Salary Rules are Admin-only — HR Payroll User and HR Payroll Manager no
-// longer have access to this section (they still see Payroll Dashboard,
-// Payruns, Salary Structures, and Payslips).
-const READ_ROLES = ['Admin'];
-const WRITE_ROLES = ['Admin'];
+// Salary Rules follow the same access pattern as Salary Structures:
+// Admin and HR Payroll Manager can create/edit/delete rules; HR Payroll
+// User can view them (needed to understand payslip breakdowns) but not
+// modify them.
+const READ_ROLES = ['Admin', 'HR Payroll User', 'HR Payroll Manager'];
+const WRITE_ROLES = ['Admin', 'HR Payroll Manager'];
 router.use(authenticate, requireRole(...READ_ROLES));
 
 function validateRule(body) {
