@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { AlertCircle, Printer } from "lucide-react";
 import { downloadPayslipPdf, getPayslip } from "../../api/payroll.api";
+import StatusBadge from "../../components/ui/StatusBadge.jsx";
 
 export default function PayslipDetail() {
   const { id } = useParams();
@@ -17,10 +19,10 @@ export default function PayslipDetail() {
   if (error)
     return (
       <div className="page">
-        <div className="form-error">{error}</div>
+        <div className="form-error"><AlertCircle size={16} />{error}</div>
       </div>
     );
-  if (!slip) return <div className="page">Loading payslip...</div>;
+  if (!slip) return <div className="page page-loading">Loading payslip…</div>;
   async function printPayslip() {
     setDownloading(true);
     try {
@@ -44,8 +46,13 @@ export default function PayslipDetail() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Payslip: {slip.employee?.name}</h1>
-        <span>{slip.status}</span>
+        <div>
+          <div className="page-eyebrow">Finance</div>
+          <h1>Payslip: {slip.employee?.name}</h1>
+        </div>
+        <div className="page-header-actions">
+          <StatusBadge status={slip.status} />
+        </div>
       </div>
       <p>
         {slip.payrun?.name} | {String(slip.periodStart).slice(0, 10)} to{" "}
@@ -57,11 +64,11 @@ export default function PayslipDetail() {
         onClick={printPayslip}
         disabled={downloading}
       >
-        {downloading ? "Preparing PDF..." : "Print Payslip"}
+        <Printer size={15} /> {downloading ? "Preparing PDF…" : "Print Payslip"}
       </button>
       {Object.entries(grouped).map(([category, lines]) => (
-        <section key={category}>
-          <h2>{category}</h2>
+        <section key={category} style={{ marginTop: 20 }}>
+          <div className="section-title">{category}</div>
           <table className="data-table">
             <tbody>
               {lines.map((line) => (
@@ -74,9 +81,10 @@ export default function PayslipDetail() {
           </table>
         </section>
       ))}
-      <h2>
-        Gross: {String(slip.grossAmount)} | Net: {String(slip.netAmount)}
-      </h2>
+      <div className="card" style={{ marginTop: 20, maxWidth: 'none' }}>
+        <div className="field-row"><span className="field-label">Gross</span><strong>{String(slip.grossAmount)}</strong></div>
+        <div className="field-row"><span className="field-label">Net</span><strong>{String(slip.netAmount)}</strong></div>
+      </div>
     </div>
   );
 }

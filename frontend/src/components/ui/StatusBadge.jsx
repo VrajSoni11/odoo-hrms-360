@@ -24,6 +24,9 @@ const STATUS_MAP = {
   info: 'info',
   warning: 'warning',
   critical: 'critical',
+  computed: 'info',
+  validated: 'approved',
+  paid: 'active',
 };
 
 function toLabel(value) {

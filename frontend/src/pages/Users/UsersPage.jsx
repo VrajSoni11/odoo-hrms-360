@@ -1,20 +1,35 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { AlertCircle, Plus, ShieldCheck, ShieldOff, Trash2, X } from 'lucide-react';
 import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
+import StatusBadge from '../../components/ui/StatusBadge.jsx';
+import { SkeletonTable } from '../../components/ui/Skeleton.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [unlinkedEmployees, setUnlinkedEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', roleId: '', employeeId: '' });
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    client.get('/users').then((r) => setUsers(r.data));
-    client.get('/users/roles').then((r) => setRoles(r.data));
-    client.get('/users/unlinked-employees').then((r) => setUnlinkedEmployees(r.data));
+    setLoading(true);
+    Promise.all([
+      client.get('/users'),
+      client.get('/users/roles'),
+      client.get('/users/unlinked-employees'),
+    ])
+      .then(([usersRes, rolesRes, unlinkedRes]) => {
+        setUsers(usersRes.data);
+        setRoles(rolesRes.data);
+        setUnlinkedEmployees(unlinkedRes.data);
+      })
+      .catch((err) => setError(err.response?.data?.error || 'Could not load users'))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -66,10 +81,16 @@ export default function UsersPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>User Management</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New User'}
-        </button>
+        <div>
+          <div className="page-eyebrow">Administration</div>
+          <h1>User Management</h1>
+          <div className="page-subtitle">{loading ? 'Loading…' : `${users.length} login(s)`}</div>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn btn-primary" onClick={() => setShowForm((s) => !s)}>
+            {showForm ? <><X size={15} /> Cancel</> : <><Plus size={15} /> New User</>}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -88,30 +109,43 @@ export default function UsersPage() {
               {unlinkedEmployees.map((e) => <option key={e.id} value={e.id}>{e.name} ({e.workEmail})</option>)}
             </select>
           </label>
-          {error && <div className="form-error">{error}</div>}
-          <button className="btn btn-primary" type="submit">Create User</button>
+          {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
+          <button className="btn btn-primary" type="submit"><Plus size={15} /> Create User</button>
         </form>
       )}
 
-      <table className="data-table">
-        <thead><tr><th>Email</th><th>Role</th><th>Employee</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id}>
-              <td>{u.email}</td>
-              <td>{u.role?.name}</td>
-              <td>{u.employee?.name || '—'}</td>
-              <td><span className={`badge badge-${u.isActive ? 'active' : 'inactive'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
-              <td className="row-actions">
-                <button className="btn btn-small" onClick={() => toggleActive(u)}>
-                  {u.isActive ? 'Deactivate' : 'Activate'}
-                </button>
-                <button className="btn btn-small btn-danger" onClick={() => handleDelete(u)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {!showForm && error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
+
+      {loading ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : users.length === 0 ? (
+        <EmptyState
+          icon={ShieldCheck}
+          title="No user logins yet"
+          description="Create a login to give someone access to PeoplePay360."
+          action={<button className="btn btn-primary" onClick={() => setShowForm(true)}><Plus size={15} /> New User</button>}
+        />
+      ) : (
+        <table className="data-table">
+          <thead><tr><th>Email</th><th>Role</th><th>Employee</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td>{u.email}</td>
+                <td>{u.role?.name}</td>
+                <td>{u.employee?.name || '—'}</td>
+                <td><StatusBadge status={u.isActive ? 'active' : 'inactive'} /></td>
+                <td className="row-actions">
+                  <button className="btn btn-small btn-secondary" onClick={() => toggleActive(u)}>
+                    {u.isActive ? <><ShieldOff size={13} /> Deactivate</> : <><ShieldCheck size={13} /> Activate</>}
+                  </button>
+                  <button className="btn btn-small btn-danger" onClick={() => handleDelete(u)}><Trash2 size={13} /> Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

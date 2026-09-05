@@ -8,11 +8,12 @@ import {
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
 import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
-import { CalendarRange } from "lucide-react";
+import { AlertCircle, CalendarRange, Send, XCircle } from "lucide-react";
 
 export default function MyTimeOffRequests() {
   const [requests, setRequests] = useState([]);
   const [types, setTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     timeOffTypeId: "",
@@ -20,7 +21,15 @@ export default function MyTimeOffRequests() {
     endDate: "",
     reason: "",
   });
-  const load = () => getTimeOffRequests().then(({ data }) => setRequests(data));
+  const load = () => {
+    setLoading(true);
+    getTimeOffRequests()
+      .then(({ data }) => setRequests(Array.isArray(data) ? data : []))
+      .catch((err) =>
+        setError(err.response?.data?.error || "Could not load your requests"),
+      )
+      .finally(() => setLoading(false));
+  };
   useEffect(() => {
     load();
     getTimeOffTypes().then(({ data }) => setTypes(data));
@@ -44,8 +53,15 @@ export default function MyTimeOffRequests() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>My Time Off Requests</h1>
+        <div>
+          <div className="page-eyebrow">Time Off</div>
+          <h1>My Time Off Requests</h1>
+          <div className="page-subtitle">
+            {loading ? "Loading…" : `${requests.length} request(s) submitted`}
+          </div>
+        </div>
       </div>
+
       <form className="card" onSubmit={submit}>
         <label>
           Type
@@ -103,43 +119,61 @@ export default function MyTimeOffRequests() {
             onChange={(e) => setForm({ ...form, reason: e.target.value })}
           />
         </label>
-        {error && <div className="form-error">{error}</div>}
-        <button className="btn btn-primary">Submit Request</button>
+        {error && (
+          <div className="form-error">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+        <button className="btn btn-primary">
+          <Send size={15} /> Submit Request
+        </button>
       </form>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Dates</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map((r) => (
-            <tr key={r.id}>
-              <td>{r.timeOffType?.name}</td>
-              <td>
-                {String(r.startDate).slice(0, 10)} to{" "}
-                {String(r.endDate).slice(0, 10)}
-              </td>
-              <td>{r.requestedAmount.toString()}</td>
-              <td>{r.status}</td>
-              <td>
-                {["pending", "approved"].includes(r.status) && (
-                  <button
-                    className="btn btn-small"
-                    onClick={() => cancelTimeOffRequest(r.id).then(load)}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </td>
+
+      {loading ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : requests.length === 0 ? (
+        <EmptyState
+          icon={CalendarRange}
+          title="No time off requests yet"
+          description="Use the form above to submit your first request."
+        />
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Dates</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {requests.map((r) => (
+              <tr key={r.id}>
+                <td>{r.timeOffType?.name}</td>
+                <td>
+                  {String(r.startDate).slice(0, 10)} to{" "}
+                  {String(r.endDate).slice(0, 10)}
+                </td>
+                <td>{r.requestedAmount.toString()}</td>
+                <td><StatusBadge status={r.status} /></td>
+                <td className="row-actions">
+                  {["pending", "approved"].includes(r.status) && (
+                    <button
+                      className="btn btn-small btn-danger"
+                      onClick={() => cancelTimeOffRequest(r.id).then(load)}
+                    >
+                      <XCircle size={13} /> Cancel
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertCircle, ArrowRight, Rocket } from "lucide-react";
 import { createPayrun, getEligibleEmployees } from "../../api/payroll.api";
 import { getSalaryStructures } from "../../api/salary.api";
 
@@ -48,8 +49,14 @@ export default function PayrunWizard() {
   }
   return (
     <div className="page">
-      <h1>New Payrun</h1>
-      {error && <div className="form-error">{error}</div>}
+      <div className="page-header">
+        <div>
+          <div className="page-eyebrow">Finance</div>
+          <h1>New Payrun</h1>
+          <div className="page-subtitle">Step {step} of 2 — {step === 1 ? "Period & structure" : "Select employees"}</div>
+        </div>
+      </div>
+      {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
       {step === 1 ? (
         <form className="card" onSubmit={continueStep}>
           <label>
@@ -97,11 +104,13 @@ export default function PayrunWizard() {
               onChange={(e) => setForm({ ...form, periodEnd: e.target.value })}
             />
           </label>
-          <button className="btn btn-primary">Continue</button>
+          <button className="btn btn-primary">
+            <ArrowRight size={15} /> Continue
+          </button>
         </form>
       ) : (
         <div>
-          <h2>Select employees</h2>
+          <div className="section-title">Select employees</div>
           <table className="data-table">
             <thead>
               <tr>
@@ -136,10 +145,11 @@ export default function PayrunWizard() {
           </table>
           <button
             className="btn btn-primary"
+            style={{ marginTop: 16 }}
             disabled={!selected.length}
             onClick={submit}
           >
-            Create Payrun
+            <Rocket size={15} /> Create Payrun
           </button>
         </div>
       )}

@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, FileSignature, Pencil, Plus, Trash2 } from 'lucide-react';
 import client from '../../api/client';
 import ContractFormModal from './ContractFormModal.jsx';
+import { SkeletonTable } from '../../components/ui/Skeleton.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 function isCurrentlyActive(contract) {
   if (contract.state !== 'active') return false;
@@ -17,14 +20,24 @@ export default function ContractsPage() {
 
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editingContract, setEditingContract] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
+    setLoading(true);
     const params = employeeIdFilter ? { employeeId: employeeIdFilter } : {};
-    client.get('/contracts', { params }).then((r) => setContracts(r.data));
-    client.get('/employees').then((r) => setEmployees(r.data));
+    Promise.all([
+      client.get('/contracts', { params }),
+      client.get('/employees'),
+    ])
+      .then(([contractsRes, employeesRes]) => {
+        setContracts(contractsRes.data);
+        setEmployees(employeesRes.data);
+      })
+      .catch((err) => setError(err.response?.data?.error || 'Could not load contracts'))
+      .finally(() => setLoading(false));
   }, [employeeIdFilter]);
 
   useEffect(() => { load(); }, [load]);
@@ -49,35 +62,54 @@ export default function ContractsPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Contracts {filterLabel && <span className="page-subtitle">— {filterLabel}</span>}</h1>
-        <button className="btn btn-primary" onClick={openCreate}>+ New Contract</button>
+        <div>
+          <div className="page-eyebrow">Workforce</div>
+          <h1>Contracts</h1>
+          <div className="page-subtitle">
+            {filterLabel ? `Showing contracts for ${filterLabel}` : loading ? 'Loading…' : `${contracts.length} contract(s) on record`}
+          </div>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button>
+        </div>
       </div>
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
 
-      <table className="data-table">
-        <thead>
-          <tr><th>Employee</th><th>Job Position</th><th>Start</th><th>End</th><th>Wage</th><th>State</th><th></th></tr>
-        </thead>
-        <tbody>
-          {contracts.map((c) => (
-            <tr key={c.id} className={isCurrentlyActive(c) ? 'row-highlight' : ''}>
-              <td>{c.employee?.name}</td>
-              <td>{c.jobPosition || '—'}</td>
-              <td>{new Date(c.startDate).toLocaleDateString()}</td>
-              <td>{c.endDate ? new Date(c.endDate).toLocaleDateString() : '— (open-ended)'}</td>
-              <td>{Number(c.wage).toLocaleString()}</td>
-              <td>
-                <span className={`badge badge-contract-${c.state}`}>{c.state}</span>
-                {isCurrentlyActive(c) && <span className="badge badge-current">CURRENT</span>}
-              </td>
-              <td className="row-actions">
-                <button className="btn btn-small" onClick={() => openEdit(c)}>Edit</button>
-                <button className="btn btn-small btn-danger" onClick={() => handleDelete(c)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {loading ? (
+        <SkeletonTable rows={6} columns={7} />
+      ) : contracts.length === 0 ? (
+        <EmptyState
+          icon={FileSignature}
+          title="No contracts yet"
+          description="Create a contract to define an employee's wage, schedule and salary structure."
+          action={<button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button>}
+        />
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr><th>Employee</th><th>Job Position</th><th>Start</th><th>End</th><th>Wage</th><th>State</th><th></th></tr>
+          </thead>
+          <tbody>
+            {contracts.map((c) => (
+              <tr key={c.id} className={isCurrentlyActive(c) ? 'row-highlight' : ''}>
+                <td>{c.employee?.name}</td>
+                <td>{c.jobPosition || '—'}</td>
+                <td>{new Date(c.startDate).toLocaleDateString()}</td>
+                <td>{c.endDate ? new Date(c.endDate).toLocaleDateString() : '— (open-ended)'}</td>
+                <td>{Number(c.wage).toLocaleString()}</td>
+                <td>
+                  <span className={`badge badge-contract-${c.state}`}>{c.state}</span>
+                  {isCurrentlyActive(c) && <span className="badge badge-current">CURRENT</span>}
+                </td>
+                <td className="row-actions">
+                  <button className="btn btn-small btn-secondary" onClick={() => openEdit(c)}><Pencil size={13} /> Edit</button>
+                  <button className="btn btn-small btn-danger" onClick={() => handleDelete(c)}><Trash2 size={13} /> Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {showForm && (
         <ContractFormModal

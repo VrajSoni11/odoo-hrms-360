@@ -4,6 +4,10 @@ import {
   getTimeOffRequests,
   refuseTimeOffRequest,
 } from "../../api/timeoff.api";
+import StatusBadge from "../../components/ui/StatusBadge.jsx";
+import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
+import { AlertCircle, CheckCircle2, ClipboardCheck, XCircle } from "lucide-react";
 
 export default function TimeOffApprovals() {
   const [requests, setRequests] = useState([]);
@@ -25,34 +29,48 @@ export default function TimeOffApprovals() {
     await action(id);
     load();
   }
+  const pending = requests.filter((r) => r.status === "pending");
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Time Off Approvals</h1>
+        <div>
+          <div className="page-eyebrow">Time Off</div>
+          <h1>Time Off Approvals</h1>
+          <div className="page-subtitle">
+            {loading ? "Loading…" : `${pending.length} pending request(s)`}
+          </div>
+        </div>
       </div>
-      {error && <div className="form-error">{error}</div>}
-      {loading && <p>Loading requests...</p>}
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Type</th>
-            <th>Dates</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {!loading &&
-            requests.filter((r) => r.status === "pending").length === 0 && (
-              <tr>
-                <td colSpan="6">No pending requests.</td>
-              </tr>
-            )}
-          {requests
-            .filter((r) => r.status === "pending")
-            .map((r) => (
+
+      {error && (
+        <div className="form-error">
+          <AlertCircle size={16} />
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <SkeletonTable rows={5} columns={6} />
+      ) : pending.length === 0 ? (
+        <EmptyState
+          icon={ClipboardCheck}
+          title="No pending requests"
+          description="You're all caught up — new requests will show up here."
+        />
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Type</th>
+              <th>Dates</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {pending.map((r) => (
               <tr key={r.id}>
                 <td>{r.employee?.name}</td>
                 <td>{r.timeOffType?.name}</td>
@@ -61,25 +79,26 @@ export default function TimeOffApprovals() {
                   {String(r.endDate).slice(0, 10)}
                 </td>
                 <td>{String(r.requestedAmount ?? 0)}</td>
-                <td>{r.status}</td>
-                <td>
+                <td><StatusBadge status={r.status} /></td>
+                <td className="row-actions">
                   <button
-                    className="btn btn-small"
+                    className="btn btn-small btn-primary"
                     onClick={() => act(approveTimeOffRequest, r.id)}
                   >
-                    Approve
-                  </button>{" "}
+                    <CheckCircle2 size={13} /> Approve
+                  </button>
                   <button
                     className="btn btn-small btn-danger"
                     onClick={() => act(refuseTimeOffRequest, r.id)}
                   >
-                    Refuse
+                    <XCircle size={13} /> Refuse
                   </button>
                 </td>
               </tr>
             ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

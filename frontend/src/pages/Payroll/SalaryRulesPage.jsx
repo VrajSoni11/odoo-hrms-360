@@ -9,6 +9,9 @@ import {
   updateSalaryRule,
 } from "../../api/salary.api";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { AlertCircle, Calculator, ListTree, Pencil, Plus, Trash2, X } from "lucide-react";
+import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
 
 const WRITE_ROLES = ["Admin", "HR Payroll Manager"];
 const initial = {
@@ -30,6 +33,7 @@ export default function SalaryRulesPage() {
   const canWrite = WRITE_ROLES.includes(user.role);
   const [structure, setStructure] = useState(null);
   const [rules, setRules] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(initial);
   const [wage, setWage] = useState("100000");
   const [preview, setPreview] = useState(null);
@@ -37,12 +41,14 @@ export default function SalaryRulesPage() {
   const [error, setError] = useState("");
   const load = () => {
     if (!structureId) return;
+    setLoading(true);
     getSalaryStructure(structureId).then(({ data }) => setStructure(data));
     getSalaryRules(structureId)
       .then(({ data }) => setRules(data))
       .catch((err) =>
         setError(err.response?.data?.error || "Could not load salary rules"),
-      );
+      )
+      .finally(() => setLoading(false));
   };
   useEffect(load, [structureId]);
   function change(field) {
@@ -73,14 +79,27 @@ export default function SalaryRulesPage() {
   if (!structureId)
     return (
       <div className="page">
-        <h1>Salary Rules</h1>
-        <p>Select a salary structure first.</p>
+        <div className="page-header">
+          <div>
+            <div className="page-eyebrow">Finance</div>
+            <h1>Salary Rules</h1>
+          </div>
+        </div>
+        <EmptyState
+          icon={ListTree}
+          title="No salary structure selected"
+          description="Pick a structure from Salary Structures to view and edit its rules."
+        />
       </div>
     );
   return (
     <div className="page">
       <div className="page-header">
-        <h1>{structure?.name || "Salary"} Rules</h1>
+        <div>
+          <div className="page-eyebrow">Finance</div>
+          <h1>{structure?.name || "Salary"} Rules</h1>
+          <div className="page-subtitle">{loading ? "Loading…" : `${rules.length} rule(s)`}</div>
+        </div>
       </div>
       {canWrite && (
         <form className="card" onSubmit={save}>
@@ -165,9 +184,9 @@ export default function SalaryRulesPage() {
               />
             </label>
           )}
-          {error && <div className="form-error">{error}</div>}
+          {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
           <button className="btn btn-primary">
-            {editing ? "Save Rule" : "Add Rule"}
+            {editing ? <><Pencil size={15} /> Save Rule</> : <><Plus size={15} /> Add Rule</>}
           </button>
           {editing && (
             <button
@@ -178,68 +197,80 @@ export default function SalaryRulesPage() {
                 setForm(initial);
               }}
             >
-              Cancel
+              <X size={15} /> Cancel
             </button>
           )}
         </form>
       )}
-      {!canWrite && error && <div className="form-error">{error}</div>}
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Sequence</th>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Method</th>
-            <th>Category</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rules.map((r) => (
-            <tr key={r.id}>
-              <td>{r.sequence}</td>
-              <td>{r.code}</td>
-              <td>{r.name}</td>
-              <td>{r.computationMethod}</td>
-              <td>{r.category}</td>
-              <td>
-                {canWrite && (
-                  <>
-                    <button
-                      className="btn btn-small"
-                      onClick={() => {
-                        setEditing(r);
-                        setForm({
-                          name: r.name,
-                          code: r.code,
-                          category: r.category,
-                          sequence: r.sequence,
-                          computationMethod: r.computationMethod,
-                          amount: r.amount ?? "",
-                          percentageOf: r.percentageOf ?? "",
-                          percentageRate: r.percentageRate ?? "",
-                          formula: r.formula ?? "",
-                        });
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-small btn-danger"
-                      onClick={() => deleteSalaryRule(r.id).then(load)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
+      {!canWrite && error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
+
+      {loading ? (
+        <SkeletonTable rows={4} columns={6} />
+      ) : rules.length === 0 ? (
+        <EmptyState
+          icon={ListTree}
+          title="No rules on this structure yet"
+          description={canWrite ? "Add a rule above to start building this salary structure." : "This structure has no salary rules configured yet."}
+        />
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Sequence</th>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Method</th>
+              <th>Category</th>
+              <th />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rules.map((r) => (
+              <tr key={r.id}>
+                <td>{r.sequence}</td>
+                <td>{r.code}</td>
+                <td>{r.name}</td>
+                <td>{r.computationMethod}</td>
+                <td>{r.category}</td>
+                <td className="row-actions">
+                  {canWrite && (
+                    <>
+                      <button
+                        className="btn btn-small btn-secondary"
+                        onClick={() => {
+                          setEditing(r);
+                          setForm({
+                            name: r.name,
+                            code: r.code,
+                            category: r.category,
+                            sequence: r.sequence,
+                            computationMethod: r.computationMethod,
+                            amount: r.amount ?? "",
+                            percentageOf: r.percentageOf ?? "",
+                            percentageRate: r.percentageRate ?? "",
+                            formula: r.formula ?? "",
+                          });
+                        }}
+                      >
+                        <Pencil size={13} /> Edit
+                      </button>
+                      <button
+                        className="btn btn-small btn-danger"
+                        onClick={() => deleteSalaryRule(r.id).then(load)}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       <div className="card" style={{ marginTop: 20 }}>
-        <h2>Preview</h2>
+        <div className="section-title">Preview</div>
         <label>
           Sample wage
           <input
@@ -249,10 +280,10 @@ export default function SalaryRulesPage() {
           />
         </label>
         <button className="btn btn-primary" onClick={runPreview}>
-          Compute Preview
+          <Calculator size={15} /> Compute Preview
         </button>
         {preview && (
-          <table className="data-table">
+          <table className="data-table" style={{ marginTop: 14 }}>
             <tbody>
               {preview.lines.map((line) => (
                 <tr key={line.code}>
