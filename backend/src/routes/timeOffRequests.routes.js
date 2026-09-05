@@ -7,6 +7,24 @@ const HR_ROLES = ['Admin', 'HR Manager'];
 router.use(authenticate);
 const include = { employee: { select: { id: true, name: true, workEmail: true } }, timeOffType: true, allocation: true, decidedBy: { select: { id: true, email: true } } };
 
+function dayCount(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  return Math.floor((end - start) / 86400000) + 1;
+}
+
+function formatDate(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function overlaps(startDate, endDate, request) {
+  return new Date(startDate) <= new Date(request.endDate) && new Date(request.startDate) <= new Date(endDate);
+}
+
+function overlapMessage(request) {
+  return `This overlaps with leave request #${request.id} from ${formatDate(request.startDate)} to ${formatDate(request.endDate)}`;
+}
+
 router.get('/', async (req, res) => {
   const isHr = HR_ROLES.includes(req.user.roleName);
   res.json(await prisma.timeOffRequest.findMany({ where: isHr ? {} : { employeeId: req.user.employeeId || -1 }, include, orderBy: { createdAt: 'desc' } }));
@@ -14,9 +32,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { timeOffTypeId, startDate, endDate, requestedAmount, reason } = req.body;
-    const amount = Number(requestedAmount);
-    if (!req.user.employeeId || !timeOffTypeId || !startDate || !endDate || !Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'An employee, type, dates, and positive requestedAmount are required' });
+    const { timeOffTypeId, startDate, endDate, reason } = req.body;
+    const amount = dayCount(startDate, endDate);
+    if (!req.user.employeeId || !timeOffTypeId || !startDate || !endDate || amount <= 0) return res.status(400).json({ error: 'An employee, type, and valid dates are required' });
+    const existing = await prisma.timeOffRequest.findMany({ where: { employeeId: req.user.employeeId, status: { in: ['pending', 'approved'] } }, orderBy: { startDate: 'asc' } });
+    const clash = existing.find((request) => overlaps(startDate, endDate, request));
+    if (clash) return res.status(409).json({ error: overlapMessage(clash) });
     const allocation = await prisma.timeOffAllocation.findFirst({ where: { employeeId: req.user.employeeId, timeOffTypeId: Number(timeOffTypeId), status: 'approved', remainingAmount: { gte: amount } }, orderBy: { createdAt: 'asc' } });
     if (!allocation) return res.status(409).json({ error: 'No approved allocation has enough remaining balance for this request' });
     const request = await prisma.timeOffRequest.create({ data: { employeeId: req.user.employeeId, timeOffTypeId: Number(timeOffTypeId), allocationId: allocation.id, startDate: new Date(startDate), endDate: new Date(endDate), requestedAmount: amount, reason: reason || null }, include });
@@ -29,13 +50,16 @@ router.patch('/:id/approve', requireRole(...HR_ROLES), async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       const request = await tx.timeOffRequest.findUnique({ where: { id: Number(req.params.id) } });
       if (!request || request.status !== 'pending') throw new Error('PENDING_NOT_FOUND');
+      const clashes = await tx.timeOffRequest.findMany({ where: { employeeId: request.employeeId, status: 'approved', id: { not: request.id } } });
+      const clash = clashes.find((candidate) => overlaps(request.startDate, request.endDate, candidate));
+      if (clash) throw new Error(overlapMessage(clash));
       const allocation = await tx.timeOffAllocation.findFirst({ where: { id: request.allocationId || -1, status: 'approved', remainingAmount: { gte: request.requestedAmount } } });
       if (!allocation) throw new Error('INSUFFICIENT_BALANCE');
       await tx.timeOffAllocation.update({ where: { id: allocation.id }, data: { remainingAmount: { decrement: request.requestedAmount } } });
       return tx.timeOffRequest.update({ where: { id: request.id }, data: { status: 'approved', decidedById: req.user.id, decidedAt: new Date() }, include });
     });
     res.json(result);
-  } catch (err) { res.status(409).json({ error: err.message === 'INSUFFICIENT_BALANCE' ? 'Allocation does not have enough remaining balance' : 'Request was not found, is not pending, or could not be approved' }); }
+  } catch (err) { res.status(409).json({ error: err.message === 'INSUFFICIENT_BALANCE' ? 'Allocation does not have enough remaining balance' : err.message === 'PENDING_NOT_FOUND' ? 'Request was not found or is not pending' : err.message }); }
 });
 
 router.patch('/:id/refuse', requireRole(...HR_ROLES), async (req, res) => {

@@ -20,6 +20,11 @@ import TimeOffAllocations from "./pages/TimeOff/TimeOffAllocations.jsx";
 import TimeOffTypes from "./pages/TimeOff/TimeOffTypes.jsx";
 import SalaryStructuresPage from "./pages/Payroll/SalaryStructuresPage.jsx";
 import SalaryRulesPage from "./pages/Payroll/SalaryRulesPage.jsx";
+import PayrunsPage from "./pages/Payroll/PayrunsPage.jsx";
+import PayrunWizard from "./pages/Payroll/PayrunWizard.jsx";
+import PayrunProcessing from "./pages/Payroll/PayrunProcessing.jsx";
+import PayslipsPage from "./pages/Payroll/PayslipsPage.jsx";
+import PayslipDetail from "./pages/Payroll/PayslipDetail.jsx";
 
 const MANAGE_ROLES = [
   "Admin",
@@ -66,6 +71,46 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
               <SalaryRulesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payruns"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayrunsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payruns/new"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayrunWizard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payruns/:id"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayrunProcessing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payslips"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayslipsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payslips/:id"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayslipDetail />
             </ProtectedRoute>
           }
         />

@@ -7,7 +7,8 @@ export const getAllocations = () => client.get('/time-off-allocations');
 export const createAllocation = (data) => client.post('/time-off-allocations', data);
 export const approveAllocation = (id) => client.patch(`/time-off-allocations/${id}/approve`);
 export const getTimeOffRequests = () => client.get('/time-off-requests');
-export const createTimeOffRequest = (data) => client.post('/time-off-requests', data);
+export const createTimeOffRequest = ({ timeOffTypeId, startDate, endDate, reason }) =>
+	client.post('/time-off-requests', { timeOffTypeId, startDate, endDate, reason });
 export const approveTimeOffRequest = (id) => client.patch(`/time-off-requests/${id}/approve`);
 export const refuseTimeOffRequest = (id) => client.patch(`/time-off-requests/${id}/refuse`);
 export const cancelTimeOffRequest = (id) => client.patch(`/time-off-requests/${id}/cancel`);

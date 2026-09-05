@@ -26,6 +26,12 @@ const ROLE_NAMES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manage
 async function main() {
   console.log('Wiping existing seed-relevant data...');
   await prisma.timeOffRequest.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.payrollWarning.deleteMany();
+  await prisma.payslipLine.deleteMany();
+  await prisma.payslip.deleteMany();
+  await prisma.payrunEmployee.deleteMany();
+  await prisma.payrun.deleteMany();
   await prisma.timeOffAllocation.deleteMany();
   await prisma.timeOffType.deleteMany();
   await prisma.attendance.deleteMany();
@@ -314,6 +320,27 @@ async function main() {
   } catch (err) {
     console.log('   -> Correctly rejected by the DB constraint:', err.message.split('\n')[0]);
   }
+
+  console.log('Creating payroll demo runs...');
+  const paidPayrun = await prisma.payrun.create({
+    data: {
+      name: 'January 2025 Payroll',
+      salaryStructureId: regularSalary.id,
+      periodStart: new Date('2025-01-01'),
+      periodEnd: new Date('2025-01-31'),
+      status: 'paid',
+      createdById: (await prisma.user.findUnique({ where: { email: 'admin@peoplepay360.demo' } })).id,
+      employees: { create: [{ employeeId: priya.id }, { employeeId: arjun.id }] },
+    },
+  });
+  const seededRules = await prisma.salaryRule.findMany({ where: { structureId: regularSalary.id }, orderBy: { sequence: 'asc' } });
+  const paidEmployees = [{ employee: priya, contract: await prisma.contract.findFirst({ where: { employeeId: priya.id, state: 'active' } }) }, { employee: arjun, contract: await prisma.contract.findFirst({ where: { employeeId: arjun.id, state: 'active' } }) }];
+  for (const item of paidEmployees) {
+    const result = require('../src/lib/salaryEngine').computeSalary(seededRules, item.contract.wage);
+    await prisma.payslip.create({ data: { payrunId: paidPayrun.id, employeeId: item.employee.id, contractId: item.contract.id, periodStart: paidPayrun.periodStart, periodEnd: paidPayrun.periodEnd, workedDays: 23, status: 'paid', grossAmount: result.totals.GROSS, netAmount: result.totals.NET, lines: { create: result.lines.map((line) => ({ salaryRuleId: seededRules.find((rule) => rule.code === line.code).id, ruleName: line.name, category: line.category, amount: line.amount, sequence: line.sequence })) } } });
+  }
+  const warningPayrun = await prisma.payrun.create({ data: { name: 'Draft Payroll With Warning', salaryStructureId: regularSalary.id, periodStart: new Date('2023-01-01'), periodEnd: new Date('2023-01-31'), createdById: (await prisma.user.findUnique({ where: { email: 'admin@peoplepay360.demo' } })).id, employees: { create: [{ employeeId: karan.id }] }, warnings: { create: { employeeId: karan.id, type: 'no_active_contract', severity: 'high', message: 'No active contract found for Karan Kapoor in the selected period' } } } });
+  console.log(`   -> Created paid payrun #${paidPayrun.id} and draft warning payrun #${warningPayrun.id}`);
 
   console.log('\nSeed complete.');
   console.log('Login with any of these (password: ' + DEMO_PASSWORD + '):');

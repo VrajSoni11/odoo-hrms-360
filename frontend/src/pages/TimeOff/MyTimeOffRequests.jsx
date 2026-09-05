@@ -14,7 +14,6 @@ export default function MyTimeOffRequests() {
     timeOffTypeId: "",
     startDate: "",
     endDate: "",
-    requestedAmount: "",
     reason: "",
   });
   const load = () => getTimeOffRequests().then(({ data }) => setRequests(data));
@@ -31,7 +30,6 @@ export default function MyTimeOffRequests() {
         timeOffTypeId: "",
         startDate: "",
         endDate: "",
-        requestedAmount: "",
         reason: "",
       });
       load();
@@ -80,19 +78,20 @@ export default function MyTimeOffRequests() {
             onChange={(e) => setForm({ ...form, endDate: e.target.value })}
           />
         </label>
-        <label>
-          Amount
-          <input
-            type="number"
-            min="0.01"
-            step="0.01"
-            required
-            value={form.requestedAmount}
-            onChange={(e) =>
-              setForm({ ...form, requestedAmount: e.target.value })
-            }
-          />
-        </label>
+        {form.startDate &&
+          form.endDate &&
+          new Date(`${form.endDate}T00:00:00`) >=
+            new Date(`${form.startDate}T00:00:00`) && (
+            <p>
+              Duration:{" "}
+              {Math.floor(
+                (new Date(`${form.endDate}T00:00:00`) -
+                  new Date(`${form.startDate}T00:00:00`)) /
+                  86400000,
+              ) + 1}{" "}
+              day(s)
+            </p>
+          )}
         <label>
           Reason
           <input
