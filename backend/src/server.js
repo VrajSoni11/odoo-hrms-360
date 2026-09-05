@@ -17,6 +17,8 @@ const salaryStructuresRoutes = require('./routes/salaryStructures.routes');
 const salaryRulesRoutes = require('./routes/salaryRules.routes');
 const payrunsRoutes = require('./routes/payruns.routes');
 const payslipsRoutes = require('./routes/payslips.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
+const { closeBrowser } = require('./lib/payslipPdf');
 
 const app = express();
 
@@ -41,6 +43,7 @@ app.use('/api/salary-structures', salaryStructuresRoutes);
 app.use('/api/salary-rules', salaryRulesRoutes);
 app.use('/api/payruns', payrunsRoutes);
 app.use('/api/payslips', payslipsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Central error handler (catches anything thrown outside try/catch blocks)
 app.use((err, req, res, next) => {
@@ -56,3 +59,10 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`PeoplePay360 backend listening on http://localhost:${PORT}`);
 });
+
+async function shutdown() {
+  await closeBrowser();
+  process.exit(0);
+}
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);

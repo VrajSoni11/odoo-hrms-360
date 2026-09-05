@@ -11,3 +11,4 @@ export const resolveWarning = (payrunId, warningId) => client.patch(`/payruns/${
 export const deletePayrun = (id) => client.delete(`/payruns/${id}`);
 export const getPayslips = (params) => client.get('/payslips', { params });
 export const getPayslip = (id) => client.get(`/payslips/${id}`);
+export const downloadPayslipPdf = (id) => client.get(`/payslips/${id}/pdf`, { responseType: 'blob' });

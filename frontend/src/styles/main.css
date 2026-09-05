@@ -146,6 +146,13 @@ input:disabled, select:disabled { opacity: 0.5; }
 .page-header-actions { display: flex; gap: 12px; align-items: center; }
 .page-subtitle { color: var(--text-muted); font-weight: 400; font-size: 16px; }
 .page-loading { padding: 40px; text-align: center; color: var(--text-muted); }
+.dashboard-empty { color: var(--text-muted); margin: 12px 0; }
+.dashboard-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.dashboard-stat { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; background: var(--bg-panel-alt); border-radius: var(--radius); font-size: 12px; }
+.dashboard-stat span { color: var(--text-muted); }
+.dashboard-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dashboard-table th, .dashboard-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+.dashboard-table th { color: var(--text-muted); font-weight: 500; }
 
 .view-toggle button {
   background: var(--bg-panel-alt);

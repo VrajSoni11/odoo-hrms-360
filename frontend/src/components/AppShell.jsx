@@ -90,6 +90,7 @@ export default function AppShell() {
               <span className="nav-link">Payroll ▾</span>
               {payrollMenuOpen && (
                 <div className="nav-dropdown-menu">
+                  <Link to="/payroll/dashboard">Dashboard</Link>
                   <Link to="/payroll/payruns">Payruns</Link>
                   <Link to="/payroll/salary-structures">Salary Structures</Link>
                   <Link to="/payroll/salary-rules">Salary Rules</Link>

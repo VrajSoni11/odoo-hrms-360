@@ -25,6 +25,7 @@ import PayrunWizard from "./pages/Payroll/PayrunWizard.jsx";
 import PayrunProcessing from "./pages/Payroll/PayrunProcessing.jsx";
 import PayslipsPage from "./pages/Payroll/PayslipsPage.jsx";
 import PayslipDetail from "./pages/Payroll/PayslipDetail.jsx";
+import PayrollDashboard from "./pages/Payroll/PayrollDashboard.jsx";
 
 const MANAGE_ROLES = [
   "Admin",
@@ -63,6 +64,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
               <SalaryStructuresPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <PayrollDashboard />
             </ProtectedRoute>
           }
         />

@@ -68,7 +68,7 @@ export default function PayrunProcessing() {
           Mark Paid
         </button>
         <button className="btn btn-ghost" disabled>
-          Send Payslips
+          Send Payslips (Coming soon)
         </button>
       </div>
       <h2>Warnings</h2>
