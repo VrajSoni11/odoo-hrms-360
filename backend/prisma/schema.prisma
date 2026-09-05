@@ -1,0 +1,77 @@
+// PeoplePay360 - Phase 0 Schema
+// Covers: Roles, Departments, Employees, Users (auth + user management)
+// Later phases (Contracts, Attendance, Time Off, Payroll) will extend this file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+}
+
+enum EmployeeType {
+  full_time
+  part_time
+  contract
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin
+  users User[]
+
+  @@map("roles")
+}
+
+model Department {
+  id                 Int          @id @default(autoincrement())
+  name               String
+  parentDepartmentId Int?         @map("parent_department_id")
+  parentDepartment   Department?  @relation("DeptHierarchy", fields: [parentDepartmentId], references: [id])
+  children           Department[] @relation("DeptHierarchy")
+  employees          Employee[]
+
+  @@map("departments")
+}
+
+model Employee {
+  id           Int            @id @default(autoincrement())
+  name         String
+  workEmail    String         @unique @map("work_email")
+  phone        String?
+  departmentId Int?           @map("department_id")
+  department   Department?    @relation(fields: [departmentId], references: [id])
+  managerId    Int?           @map("manager_id")
+  manager      Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports      Employee[]     @relation("EmployeeManager")
+  jobPosition  String?        @map("job_position")
+  status       EmployeeStatus @default(active)
+  employeeType EmployeeType   @default(full_time) @map("employee_type")
+  photoUrl     String?        @map("photo_url")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  user User?
+
+  @@map("employees")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  roleId       Int      @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [id])
+  employeeId   Int?     @unique @map("employee_id")
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
