@@ -5,6 +5,18 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const router = express.Router();
 const MANAGE_ROLES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager'];
 
+const toIntOrNull = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const FK_FIELD_FROM_INDEX = {
+  'employees_departmentId_fkey (index)': 'Department',
+  'employees_scheduleId_fkey (index)': 'Working Schedule',
+  'employees_managerId_fkey (index)': 'Manager',
+};
+
 const EMPLOYEE_INCLUDE = {
   department: true,
   manager: { select: { id: true, name: true } },
@@ -66,12 +78,12 @@ router.post('/', requireRole(...MANAGE_ROLES), async (req, res) => {
         name,
         workEmail,
         phone: phone || null,
-        departmentId: departmentId || null,
-        managerId: managerId || null,
+        departmentId: toIntOrNull(departmentId),
+        managerId: toIntOrNull(managerId),
         jobPosition: jobPosition || null,
         status: status || 'active',
         employeeType: employeeType || 'full_time',
-        scheduleId: scheduleId || null,
+        scheduleId: toIntOrNull(scheduleId),
       },
       include: EMPLOYEE_INCLUDE,
     });
@@ -80,6 +92,10 @@ router.post('/', requireRole(...MANAGE_ROLES), async (req, res) => {
     console.error(err);
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'An employee with that work email already exists' });
+    }
+    if (err.code === 'P2003') {
+      const field = FK_FIELD_FROM_INDEX[err.meta?.field_name] || 'Linked record';
+      return res.status(400).json({ error: `${field} not found — please pick a valid option from the dropdown` });
     }
     res.status(500).json({ error: 'Could not create employee' });
   }
@@ -94,12 +110,12 @@ router.put('/:id', requireRole(...MANAGE_ROLES), async (req, res) => {
         name,
         workEmail,
         phone: phone || null,
-        departmentId: departmentId || null,
-        managerId: managerId || null,
+        departmentId: toIntOrNull(departmentId),
+        managerId: toIntOrNull(managerId),
         jobPosition: jobPosition || null,
         status,
         employeeType,
-        scheduleId: scheduleId || null,
+        scheduleId: toIntOrNull(scheduleId),
       },
       include: EMPLOYEE_INCLUDE,
     });
@@ -108,6 +124,10 @@ router.put('/:id', requireRole(...MANAGE_ROLES), async (req, res) => {
     console.error(err);
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'An employee with that work email already exists' });
+    }
+    if (err.code === 'P2003') {
+      const field = FK_FIELD_FROM_INDEX[err.meta?.field_name] || 'Linked record';
+      return res.status(400).json({ error: `${field} not found — please pick a valid option from the dropdown` });
     }
     res.status(500).json({ error: 'Could not update employee' });
   }

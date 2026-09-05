@@ -7,8 +7,8 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-const SESSION_MINUTES = 2;
-const ACCESS_TOKEN_EXPIRES_IN = '2m';
+const SESSION_MINUTES = 15;
+const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_DAYS = 3;
 const accessCookieOptions = {
   httpOnly: true,
