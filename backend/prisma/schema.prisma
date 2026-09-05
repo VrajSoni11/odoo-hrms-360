@@ -1,6 +1,6 @@
-// PeoplePay360 - Phase 0 Schema
-// Covers: Roles, Departments, Employees, Users (auth + user management)
-// Later phases (Contracts, Attendance, Time Off, Payroll) will extend this file.
+// PeoplePay360 — Prisma schema
+// Phase 0: Role, Department, Employee, User
+// Phase 1: WorkingSchedule, ScheduleLine, Contract (+ overlap constraint, see afterMigrate.js)
 
 generator client {
   provider = "prisma-client-js"
@@ -11,20 +11,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum EmployeeStatus {
-  active
-  inactive
-}
-
-enum EmployeeType {
-  full_time
-  part_time
-  contract
-}
+// ---------- Phase 0 ----------
 
 model Role {
   id    Int    @id @default(autoincrement())
-  name  String @unique // Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin
+  name  String @unique // Admin, HR Manager, HR Payroll User, HR Payroll Manager, Employee
   users User[]
 
   @@map("roles")
@@ -33,45 +24,96 @@ model Role {
 model Department {
   id                 Int          @id @default(autoincrement())
   name               String
-  parentDepartmentId Int?         @map("parent_department_id")
+  parentDepartmentId Int?
   parentDepartment   Department?  @relation("DeptHierarchy", fields: [parentDepartmentId], references: [id])
-  children           Department[] @relation("DeptHierarchy")
+  subDepartments     Department[] @relation("DeptHierarchy")
   employees          Employee[]
+  contracts          Contract[]
+  createdAt          DateTime     @default(now())
 
   @@map("departments")
 }
 
 model Employee {
-  id           Int            @id @default(autoincrement())
-  name         String
-  workEmail    String         @unique @map("work_email")
-  phone        String?
-  departmentId Int?           @map("department_id")
-  department   Department?    @relation(fields: [departmentId], references: [id])
-  managerId    Int?           @map("manager_id")
-  manager      Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports      Employee[]     @relation("EmployeeManager")
-  jobPosition  String?        @map("job_position")
-  status       EmployeeStatus @default(active)
-  employeeType EmployeeType   @default(full_time) @map("employee_type")
-  photoUrl     String?        @map("photo_url")
-  createdAt    DateTime       @default(now()) @map("created_at")
+  id             Int              @id @default(autoincrement())
+  name           String
+  workEmail      String           @unique
+  phone          String?
+  departmentId   Int?
+  department     Department?      @relation(fields: [departmentId], references: [id])
+  managerId      Int?
+  manager        Employee?        @relation("ManagerReports", fields: [managerId], references: [id])
+  reports        Employee[]       @relation("ManagerReports")
+  jobPosition    String?
+  status         String           @default("active") // active/inactive
+  employeeType   String           @default("full_time") // full_time/part_time/contract
+  photoUrl       String?
+  scheduleId     Int?
+  schedule       WorkingSchedule? @relation(fields: [scheduleId], references: [id])
+  createdAt      DateTime         @default(now())
 
-  user User?
+  user      User?
+  contracts Contract[]
 
   @@map("employees")
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  roleId       Int      @map("role_id")
-  role         Role     @relation(fields: [roleId], references: [id])
-  employeeId   Int?     @unique @map("employee_id")
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  roleId       Int
+  role         Role      @relation(fields: [roleId], references: [id])
+  employeeId   Int?      @unique
   employee     Employee? @relation(fields: [employeeId], references: [id])
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
 
   @@map("users")
+}
+
+// ---------- Phase 1 ----------
+
+model WorkingSchedule {
+  id               Int            @id @default(autoincrement())
+  name             String
+  type             String         @default("full_time") // full_time/part_time
+  totalWeeklyHours Decimal        @default(0) @db.Decimal(5, 2) // auto-computed server-side, never entered manually
+  lines            ScheduleLine[]
+  employees        Employee[]
+  contracts        Contract[]
+  createdAt        DateTime       @default(now())
+
+  @@map("working_schedules")
+}
+
+model ScheduleLine {
+  id           Int             @id @default(autoincrement())
+  scheduleId   Int
+  schedule     WorkingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int             // 0 = Monday ... 6 = Sunday
+  startTime    String          // "09:00" (24h HH:mm)
+  endTime      String          // "17:00" (24h HH:mm)
+  breakMinutes Int             @default(0)
+
+  @@map("schedule_lines")
+}
+
+model Contract {
+  id                Int              @id @default(autoincrement())
+  employeeId        Int
+  employee          Employee         @relation(fields: [employeeId], references: [id])
+  departmentId      Int?
+  department        Department?      @relation(fields: [departmentId], references: [id])
+  jobPosition       String?
+  scheduleId        Int?
+  schedule          WorkingSchedule? @relation(fields: [scheduleId], references: [id])
+  startDate         DateTime         @db.Date
+  endDate           DateTime?        @db.Date
+  wage              Decimal          @db.Decimal(12, 2)
+  salaryStructureId Int?             // placeholder FK, Salary Structure model arrives in Phase 4
+  state             String           @default("draft") // draft/active/expired/cancelled
+  createdAt         DateTime         @default(now())
+
+  @@map("contracts")
 }

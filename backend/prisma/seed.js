@@ -1,157 +1,185 @@
 /**
- * PeoplePay360 - Phase 0 Seed Script
+ * Standalone seed script — run with `npm run seed`.
+ * Safe to re-run: wipes and recreates seed data each time (dev/demo only,
+ * never do this against a real production DB).
  *
- * This is a STARTING dataset only, so the app isn't empty on first login
- * and every role can sign in immediately. Everything it creates could
- * equally have been created by hand through the webapp - nothing here
- * is a substitute for the CRUD screens.
- *
- * Run with: npm run seed
- * Safe to re-run: it clears Phase 0 tables first (dev/demo use only -
- * do NOT run this against a real production database).
+ * Creates:
+ *  - 5 roles
+ *  - 3 departments
+ *  - 8 employees (with a manager chain)
+ *  - 5 login users (one per role, password "Password@123")
+ *  - 2 working schedules (Full-Time 40h, Part-Time 20h)
+ *  - contracts for the seeded employees, including ONE deliberate overlap
+ *    attempt that is caught and reported (not inserted) to prove the
+ *    constraint works out of the box
  */
 
-const { PrismaClient } = require('@prisma/client');
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
+const DEMO_PASSWORD = 'Password@123';
 
-const DEMO_PASSWORD = 'Password@123'; // same password for every seeded login, for demo convenience
+const ROLE_NAMES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager', 'Employee'];
 
 async function main() {
-  console.log('Seeding PeoplePay360 Phase 0 data...');
-
-  // Clean slate (order matters due to FKs)
+  console.log('Wiping existing seed-relevant data...');
+  await prisma.contract.deleteMany();
+  await prisma.scheduleLine.deleteMany();
+  await prisma.workingSchedule.deleteMany();
   await prisma.user.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.department.deleteMany();
   await prisma.role.deleteMany();
 
-  // 1. Roles
-  const roleNames = ['Employee', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager', 'Admin'];
+  console.log('Creating roles...');
   const roles = {};
-  for (const name of roleNames) {
+  for (const name of ROLE_NAMES) {
     roles[name] = await prisma.role.create({ data: { name } });
   }
-  console.log(`Created ${roleNames.length} roles`);
 
-  // 2. Departments
+  console.log('Creating departments...');
   const engineering = await prisma.department.create({ data: { name: 'Engineering' } });
   const hr = await prisma.department.create({ data: { name: 'Human Resources' } });
   const sales = await prisma.department.create({ data: { name: 'Sales' } });
-  console.log('Created 3 departments');
 
-  // 3. Employees (8 total) - includes a manager chain
+  console.log('Creating working schedules...');
+  const fullTimeSchedule = await prisma.workingSchedule.create({
+    data: {
+      name: 'Standard Full-Time (Mon-Fri, 9-5)',
+      type: 'full_time',
+      totalWeeklyHours: 40,
+      lines: {
+        create: [0, 1, 2, 3, 4].map((day) => ({
+          dayOfWeek: day,
+          startTime: '09:00',
+          endTime: '18:00',
+          breakMinutes: 60,
+        })),
+      },
+    },
+  });
+
+  const partTimeSchedule = await prisma.workingSchedule.create({
+    data: {
+      name: 'Part-Time (Mon-Fri, half day)',
+      type: 'part_time',
+      totalWeeklyHours: 20,
+      lines: {
+        create: [0, 1, 2, 3, 4].map((day) => ({
+          dayOfWeek: day,
+          startTime: '09:00',
+          endTime: '13:00',
+          breakMinutes: 0,
+        })),
+      },
+    },
+  });
+
+  console.log('Creating employees...');
   const priya = await prisma.employee.create({
     data: {
       name: 'Priya Sharma',
-      workEmail: 'priya.sharma@peoplepay360.com',
-      phone: '+91-9876500001',
+      workEmail: 'priya.sharma@peoplepay360.demo',
       departmentId: engineering.id,
-      jobPosition: 'Engineering Manager',
-      status: 'active',
+      jobPosition: 'Engineering Director',
       employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
     },
   });
 
   const arjun = await prisma.employee.create({
     data: {
       name: 'Arjun Mehta',
-      workEmail: 'arjun.mehta@peoplepay360.com',
-      phone: '+91-9876500002',
+      workEmail: 'arjun.mehta@peoplepay360.demo',
       departmentId: engineering.id,
       managerId: priya.id,
-      jobPosition: 'Payroll Specialist',
-      status: 'active',
+      jobPosition: 'Senior Backend Engineer',
       employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
+    },
+  });
+
+  const sneha = await prisma.employee.create({
+    data: {
+      name: 'Sneha Iyer',
+      workEmail: 'sneha.iyer@peoplepay360.demo',
+      departmentId: engineering.id,
+      managerId: priya.id,
+      jobPosition: 'Frontend Engineer',
+      employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
+    },
+  });
+
+  const rahul = await prisma.employee.create({
+    data: {
+      name: 'Rahul Verma',
+      workEmail: 'rahul.verma@peoplepay360.demo',
+      departmentId: hr.id,
+      jobPosition: 'HR Manager',
+      employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
     },
   });
 
   const ananya = await prisma.employee.create({
     data: {
-      name: 'Ananya Rao',
-      workEmail: 'ananya.rao@peoplepay360.com',
-      phone: '+91-9876500003',
+      name: 'Ananya Gupta',
+      workEmail: 'ananya.gupta@peoplepay360.demo',
       departmentId: hr.id,
-      jobPosition: 'HR Manager',
-      status: 'active',
+      managerId: rahul.id,
+      jobPosition: 'Payroll Specialist',
       employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
     },
   });
 
-  const rohan = await prisma.employee.create({
+  const vikram = await prisma.employee.create({
     data: {
-      name: 'Rohan Iyer',
-      workEmail: 'rohan.iyer@peoplepay360.com',
-      phone: '+91-9876500004',
-      departmentId: hr.id,
-      managerId: ananya.id,
-      jobPosition: 'HR Payroll Admin',
-      status: 'active',
-      employeeType: 'full_time',
-    },
-  });
-
-  const kabir = await prisma.employee.create({
-    data: {
-      name: 'Kabir Nair',
-      workEmail: 'kabir.nair@peoplepay360.com',
-      phone: '+91-9876500005',
+      name: 'Vikram Nair',
+      workEmail: 'vikram.nair@peoplepay360.demo',
       departmentId: sales.id,
-      jobPosition: 'Sales Executive',
-      status: 'active',
+      jobPosition: 'Sales Manager',
       employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
     },
   });
 
-  const meera = await prisma.employee.create({
+  const divya = await prisma.employee.create({
     data: {
-      name: 'Meera Patel',
-      workEmail: 'meera.patel@peoplepay360.com',
-      phone: '+91-9876500006',
+      name: 'Divya Reddy',
+      workEmail: 'divya.reddy@peoplepay360.demo',
+      departmentId: sales.id,
+      managerId: vikram.id,
+      jobPosition: 'Sales Executive',
+      employeeType: 'part_time',
+      scheduleId: partTimeSchedule.id,
+    },
+  });
+
+  const karan = await prisma.employee.create({
+    data: {
+      name: 'Karan Kapoor',
+      workEmail: 'karan.kapoor@peoplepay360.demo',
       departmentId: engineering.id,
       managerId: priya.id,
-      jobPosition: 'Software Engineer',
-      status: 'active',
+      jobPosition: 'QA Engineer',
       employeeType: 'full_time',
+      scheduleId: fullTimeSchedule.id,
     },
   });
 
-  const aditya = await prisma.employee.create({
-    data: {
-      name: 'Aditya Kapoor',
-      workEmail: 'aditya.kapoor@peoplepay360.com',
-      phone: '+91-9876500007',
-      departmentId: sales.id,
-      jobPosition: 'Sales Intern',
-      status: 'active',
-      employeeType: 'contract',
-    },
-  });
-
-  const zara = await prisma.employee.create({
-    data: {
-      name: 'Zara Khan',
-      workEmail: 'zara.khan@peoplepay360.com',
-      phone: '+91-9876500008',
-      departmentId: hr.id,
-      jobPosition: 'System Administrator',
-      status: 'active',
-      employeeType: 'full_time',
-    },
-  });
-
-  console.log('Created 8 employees');
-
-  // 4. Users - one per role, linked to an employee, all sharing DEMO_PASSWORD
+  console.log('Creating login users (one per role, password: ' + DEMO_PASSWORD + ')...');
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   const seededUsers = [
-    { email: 'meera.patel@peoplepay360.com', role: 'Employee', employeeId: meera.id },
-    { email: 'ananya.rao@peoplepay360.com', role: 'HR Manager', employeeId: ananya.id },
-    { email: 'arjun.mehta@peoplepay360.com', role: 'HR Payroll User', employeeId: arjun.id },
-    { email: 'rohan.iyer@peoplepay360.com', role: 'HR Payroll Manager', employeeId: rohan.id },
-    { email: 'zara.khan@peoplepay360.com', role: 'Admin', employeeId: zara.id },
+    { email: 'admin@peoplepay360.demo', role: 'Admin', employeeId: priya.id },
+    { email: 'hrmanager@peoplepay360.demo', role: 'HR Manager', employeeId: rahul.id },
+    { email: 'payrolluser@peoplepay360.demo', role: 'HR Payroll User', employeeId: ananya.id },
+    { email: 'payrollmanager@peoplepay360.demo', role: 'HR Payroll Manager', employeeId: vikram.id },
+    { email: 'employee@peoplepay360.demo', role: 'Employee', employeeId: sneha.id },
   ];
 
   for (const u of seededUsers) {
@@ -165,21 +193,99 @@ async function main() {
     });
   }
 
-  console.log(`Created ${seededUsers.length} login users (all use password: ${DEMO_PASSWORD})`);
-  console.log('');
-  console.log('=== Seeded login credentials ===');
-  seededUsers.forEach((u) => console.log(`  ${u.role.padEnd(20)} -> ${u.email}`));
-  console.log(`  Password for all      -> ${DEMO_PASSWORD}`);
-  console.log('=================================');
-  console.log('');
-  console.log('Seed complete. Kabir Nair and Aditya Kapoor were seeded as employees WITHOUT a login,');
-  console.log('to demonstrate that employees can exist before any user account is created for them.');
+  console.log('Creating contracts...');
+  // Priya: a closed historical contract, then a current active one
+  await prisma.contract.create({
+    data: {
+      employeeId: priya.id,
+      departmentId: engineering.id,
+      jobPosition: 'Engineering Manager',
+      scheduleId: fullTimeSchedule.id,
+      startDate: new Date('2023-01-01'),
+      endDate: new Date('2023-12-31'),
+      wage: 140000,
+      state: 'expired',
+    },
+  });
+  await prisma.contract.create({
+    data: {
+      employeeId: priya.id,
+      departmentId: engineering.id,
+      jobPosition: 'Engineering Director',
+      scheduleId: fullTimeSchedule.id,
+      startDate: new Date('2024-01-01'),
+      endDate: null,
+      wage: 180000,
+      state: 'active',
+    },
+  });
+
+  // Arjun, Sneha, Rahul, Ananya, Vikram, Karan: single ongoing active contracts
+  const simpleContracts = [
+    { emp: arjun, position: 'Senior Backend Engineer', wage: 120000 },
+    { emp: sneha, position: 'Frontend Engineer', wage: 105000 },
+    { emp: rahul, position: 'HR Manager', wage: 95000 },
+    { emp: ananya, position: 'Payroll Specialist', wage: 78000 },
+    { emp: vikram, position: 'Sales Manager', wage: 110000 },
+    { emp: karan, position: 'QA Engineer', wage: 82000 },
+  ];
+  for (const c of simpleContracts) {
+    await prisma.contract.create({
+      data: {
+        employeeId: c.emp.id,
+        departmentId: c.emp.departmentId,
+        jobPosition: c.position,
+        scheduleId: fullTimeSchedule.id,
+        startDate: new Date('2024-06-01'),
+        endDate: null,
+        wage: c.wage,
+        state: 'active',
+      },
+    });
+  }
+
+  // Divya: part-time active contract
+  await prisma.contract.create({
+    data: {
+      employeeId: divya.id,
+      departmentId: sales.id,
+      jobPosition: 'Sales Executive',
+      scheduleId: partTimeSchedule.id,
+      startDate: new Date('2024-03-01'),
+      endDate: null,
+      wage: 45000,
+      state: 'active',
+    },
+  });
+
+  console.log('\nDemonstrating the overlap constraint (this INSERT should be rejected)...');
+  try {
+    await prisma.contract.create({
+      data: {
+        employeeId: arjun.id, // Arjun already has an open-ended active contract from 2024-06-01
+        departmentId: engineering.id,
+        jobPosition: 'Staff Engineer (duplicate attempt)',
+        scheduleId: fullTimeSchedule.id,
+        startDate: new Date('2025-01-01'),
+        endDate: null,
+        wage: 150000,
+        state: 'active',
+      },
+    });
+    console.log('   -> WARNING: overlap was NOT rejected. Did you run `npm run db:constraint`?');
+  } catch (err) {
+    console.log('   -> Correctly rejected by the DB constraint:', err.message.split('\n')[0]);
+  }
+
+  console.log('\nSeed complete.');
+  console.log('Login with any of these (password: ' + DEMO_PASSWORD + '):');
+  seededUsers.forEach((u) => console.log(`   ${u.role.padEnd(20)} ${u.email}`));
 }
 
 main()
   .catch((e) => {
-    console.error('Seed failed:', e);
-    process.exit(1);
+    console.error(e);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

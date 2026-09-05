@@ -1,21 +1,20 @@
 const jwt = require('jsonwebtoken');
 
 /**
- * Verifies the JWT from the Authorization header and attaches
- * { id, role, employeeId } to req.user.
+ * Verifies the JWT on the Authorization header and attaches the decoded
+ * payload to req.user as { id, roleId, roleName, employeeId }.
  */
 function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header' });
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = payload; // { id, email, role, employeeId }
+    req.user = payload; // { id, roleId, roleName, employeeId }
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -23,19 +22,16 @@ function authenticate(req, res, next) {
 }
 
 /**
- * Role guard. Usage: requireRole(['Admin', 'HR Manager'])
- * This is the AUTHORITATIVE access control layer - the frontend
- * hiding nav items is UX only, this is what actually enforces permissions.
+ * Role-gate a route. Usage: requireRole('Admin', 'HR Manager')
+ * Must run AFTER authenticate().
  */
-function requireRole(allowedRoles) {
+function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        error: `Forbidden: requires one of [${allowedRoles.join(', ')}], you have '${req.user.role}'`,
-      });
+    if (!allowedRoles.includes(req.user.roleName)) {
+      return res.status(403).json({ error: 'Forbidden — insufficient role for this action' });
     }
     next();
   };

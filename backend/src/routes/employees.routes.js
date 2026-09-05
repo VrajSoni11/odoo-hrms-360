@@ -1,147 +1,125 @@
 const express = require('express');
-const prisma = require('../utils/prisma');
+const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
+const MANAGE_ROLES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager'];
 
-const MANAGE_ROLES = ['HR Manager', 'HR Payroll User', 'HR Payroll Manager', 'Admin'];
-
-const employeeInclude = {
+const EMPLOYEE_INCLUDE = {
   department: true,
   manager: { select: { id: true, name: true } },
+  schedule: true,
+  _count: { select: { contracts: true } },
 };
 
-// GET /api/employees/me - Employee self-service: their own record only
-router.get('/me', authenticate, async (req, res) => {
+router.use(authenticate);
+
+// GET /api/employees/me — every role can see their own record
+router.get('/me', async (req, res) => {
   if (!req.user.employeeId) {
-    return res.status(404).json({ error: 'No employee record linked to this account' });
+    return res.status(404).json({ error: 'This login is not linked to an employee record' });
   }
   const employee = await prisma.employee.findUnique({
     where: { id: req.user.employeeId },
-    include: employeeInclude,
+    include: EMPLOYEE_INCLUDE,
   });
-  if (!employee) return res.status(404).json({ error: 'Employee not found' });
   res.json(employee);
 });
 
-// GET /api/employees - full list, HR Manager+ only
-router.get('/', authenticate, requireRole(MANAGE_ROLES), async (req, res) => {
-  const { search, departmentId, status } = req.query;
-
-  const where = {
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { workEmail: { contains: search, mode: 'insensitive' } },
-        { jobPosition: { contains: search, mode: 'insensitive' } },
-      ],
-    }),
-    ...(departmentId && { departmentId: Number(departmentId) }),
-    ...(status && { status }),
-  };
-
+// GET /api/employees — list (HR Manager and above only)
+router.get('/', requireRole(...MANAGE_ROLES), async (req, res) => {
   const employees = await prisma.employee.findMany({
-    where,
-    include: employeeInclude,
+    include: EMPLOYEE_INCLUDE,
     orderBy: { name: 'asc' },
   });
   res.json(employees);
 });
 
-// GET /api/employees/:id - HR Manager+ only (Employee role must use /me)
-router.get('/:id', authenticate, requireRole(MANAGE_ROLES), async (req, res) => {
+// GET /api/employees/:id — detail, with smart-button counts
+router.get('/:id', requireRole(...MANAGE_ROLES), async (req, res) => {
   const employee = await prisma.employee.findUnique({
     where: { id: Number(req.params.id) },
-    include: employeeInclude,
+    include: EMPLOYEE_INCLUDE,
   });
   if (!employee) return res.status(404).json({ error: 'Employee not found' });
   res.json(employee);
 });
 
-// POST /api/employees
-router.post('/', authenticate, requireRole(MANAGE_ROLES), async (req, res) => {
-  try {
-    const { name, workEmail, phone, departmentId, managerId, jobPosition, status, employeeType, photoUrl } = req.body;
+// GET /api/employees/:id/contracts — smart-button target
+router.get('/:id/contracts', requireRole(...MANAGE_ROLES), async (req, res) => {
+  const contracts = await prisma.contract.findMany({
+    where: { employeeId: Number(req.params.id) },
+    include: { department: true, schedule: true },
+    orderBy: { startDate: 'desc' },
+  });
+  res.json(contracts);
+});
 
+router.post('/', requireRole(...MANAGE_ROLES), async (req, res) => {
+  try {
+    const { name, workEmail, phone, departmentId, managerId, jobPosition, status, employeeType, scheduleId } = req.body;
     if (!name || !workEmail) {
       return res.status(400).json({ error: 'name and workEmail are required' });
     }
-
     const employee = await prisma.employee.create({
       data: {
         name,
-        workEmail: workEmail.toLowerCase().trim(),
+        workEmail,
         phone: phone || null,
-        departmentId: departmentId ? Number(departmentId) : null,
-        managerId: managerId ? Number(managerId) : null,
+        departmentId: departmentId || null,
+        managerId: managerId || null,
         jobPosition: jobPosition || null,
         status: status || 'active',
         employeeType: employeeType || 'full_time',
-        photoUrl: photoUrl || null,
+        scheduleId: scheduleId || null,
       },
-      include: employeeInclude,
+      include: EMPLOYEE_INCLUDE,
     });
-
     res.status(201).json(employee);
   } catch (err) {
-    if (err.code === 'P2002') {
-      return res.status(409).json({ error: 'An employee with this work email already exists' });
-    }
     console.error(err);
-    res.status(500).json({ error: 'Failed to create employee' });
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'An employee with that work email already exists' });
+    }
+    res.status(500).json({ error: 'Could not create employee' });
   }
 });
 
-// PUT /api/employees/:id
-router.put('/:id', authenticate, requireRole(MANAGE_ROLES), async (req, res) => {
+router.put('/:id', requireRole(...MANAGE_ROLES), async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { name, workEmail, phone, departmentId, managerId, jobPosition, status, employeeType, photoUrl } = req.body;
-
-    if (managerId && Number(managerId) === id) {
-      return res.status(400).json({ error: 'An employee cannot be their own manager' });
-    }
-
+    const { name, workEmail, phone, departmentId, managerId, jobPosition, status, employeeType, scheduleId } = req.body;
     const employee = await prisma.employee.update({
-      where: { id },
+      where: { id: Number(req.params.id) },
       data: {
         name,
-        workEmail: workEmail ? workEmail.toLowerCase().trim() : undefined,
-        phone,
-        departmentId: departmentId ? Number(departmentId) : null,
-        managerId: managerId ? Number(managerId) : null,
-        jobPosition,
+        workEmail,
+        phone: phone || null,
+        departmentId: departmentId || null,
+        managerId: managerId || null,
+        jobPosition: jobPosition || null,
         status,
         employeeType,
-        photoUrl,
+        scheduleId: scheduleId || null,
       },
-      include: employeeInclude,
+      include: EMPLOYEE_INCLUDE,
     });
-
     res.json(employee);
   } catch (err) {
-    if (err.code === 'P2002') {
-      return res.status(409).json({ error: 'An employee with this work email already exists' });
-    }
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Employee not found' });
-    }
     console.error(err);
-    res.status(500).json({ error: 'Failed to update employee' });
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'An employee with that work email already exists' });
+    }
+    res.status(500).json({ error: 'Could not update employee' });
   }
 });
 
-// DELETE /api/employees/:id
-router.delete('/:id', authenticate, requireRole(MANAGE_ROLES), async (req, res) => {
+router.delete('/:id', requireRole(...MANAGE_ROLES), async (req, res) => {
   try {
     await prisma.employee.delete({ where: { id: Number(req.params.id) } });
-    res.status(204).send();
+    res.json({ ok: true });
   } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Employee not found' });
-    }
     console.error(err);
-    res.status(500).json({ error: 'Failed to delete employee (they may have linked records, e.g. a user account)' });
+    res.status(500).json({ error: 'Could not delete employee — they may have linked contracts, users, or reports' });
   }
 });
 

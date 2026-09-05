@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import apiClient from '../api/client';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import client from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -10,43 +10,46 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(true);
 
-  // On mount, if we have a token, verify it's still valid and refresh user info
-  useEffect(() => {
+  const bootstrap = useCallback(async () => {
     const token = localStorage.getItem('pp360_token');
     if (!token) {
       setLoading(false);
       return;
     }
-    apiClient
-      .get('/auth/me')
-      .then((res) => {
-        setUser(res.data);
-        localStorage.setItem('pp360_user', JSON.stringify(res.data));
-      })
-      .catch(() => {
-        localStorage.removeItem('pp360_token');
-        localStorage.removeItem('pp360_user');
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const { data } = await client.get('/auth/me');
+      setUser(data);
+      localStorage.setItem('pp360_user', JSON.stringify(data));
+    } catch {
+      localStorage.removeItem('pp360_token');
+      localStorage.removeItem('pp360_user');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const res = await apiClient.post('/auth/login', { email, password });
-    localStorage.setItem('pp360_token', res.data.token);
-    localStorage.setItem('pp360_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data.user;
-  }, []);
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
 
-  const logout = useCallback(() => {
+  const login = async (email, password) => {
+    const { data } = await client.post('/auth/login', { email, password });
+    localStorage.setItem('pp360_token', data.token);
+    const meResponse = await client.get('/auth/me');
+    localStorage.setItem('pp360_user', JSON.stringify(meResponse.data));
+    setUser(meResponse.data);
+    return meResponse.data;
+  };
+
+  const logout = () => {
     localStorage.removeItem('pp360_token');
     localStorage.removeItem('pp360_user');
     setUser(null);
-  }, []);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refresh: bootstrap }}>
       {children}
     </AuthContext.Provider>
   );
@@ -54,6 +57,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

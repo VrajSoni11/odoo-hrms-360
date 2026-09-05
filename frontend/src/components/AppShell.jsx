@@ -1,14 +1,24 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { HR_MANAGE_ROLES, PAYROLL_ROLES, ADMIN_ONLY } from '../constants/roles';
+import React, { useState } from 'react';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
+
+const NAV_RULES = {
+  employees: ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager'],
+  timeOff: ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager', 'Employee'],
+  payroll: ['Admin', 'HR Payroll User', 'HR Payroll Manager'],
+  userManagement: ['Admin'],
+};
+
+function canSee(role, key) {
+  return NAV_RULES[key].includes(role);
+}
 
 export default function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const canSeeHR = HR_MANAGE_ROLES.includes(user.role);
-  const canSeePayroll = PAYROLL_ROLES.includes(user.role);
-  const isAdmin = ADMIN_ONLY.includes(user.role);
+  const [employeesMenuOpen, setEmployeesMenuOpen] = useState(false);
+  const [timeOffMenuOpen, setTimeOffMenuOpen] = useState(false);
+  const [payrollMenuOpen, setPayrollMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -17,68 +27,72 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="app-brand">PeoplePay360</div>
+      <header className="topnav">
+        <div className="topnav-brand">PeoplePay360</div>
 
-        <nav className="app-nav">
-          {canSeeHR ? (
-            <div className="nav-dropdown">
-              <span className="nav-item">Employees ▾</span>
-              <div className="nav-dropdown-menu">
-                <NavLink to="/employees">Employees</NavLink>
-                <NavLink to="/departments">Departments</NavLink>
-                <span className="nav-item-disabled">Contracts (Phase 1)</span>
-                <span className="nav-item-disabled">Working Schedule (Phase 1)</span>
-              </div>
-            </div>
-          ) : (
-            <NavLink to="/my-profile" className="nav-item">
-              My Profile
-            </NavLink>
-          )}
-
-          <NavLink to="/attendance" className="nav-item">
-            Attendance
-          </NavLink>
-
-          <div className="nav-dropdown">
-            <span className="nav-item">Time Off ▾</span>
-            <div className="nav-dropdown-menu">
-              <span className="nav-item-disabled">Dashboard (Phase 3)</span>
-              <span className="nav-item-disabled">Requests (Phase 3)</span>
-              <span className="nav-item-disabled">Time Off Types (Phase 3)</span>
-              <span className="nav-item-disabled">Allocations (Phase 3)</span>
-            </div>
-          </div>
-
-          {canSeePayroll && (
-            <div className="nav-dropdown">
-              <span className="nav-item">Payroll ▾</span>
-              <div className="nav-dropdown-menu">
-                <span className="nav-item-disabled">Dashboard (Phase 7)</span>
-                <span className="nav-item-disabled">Payruns (Phase 5)</span>
-                <span className="nav-item-disabled">Payslips (Phase 5)</span>
-                <span className="nav-item-disabled">Salary Structures (Phase 4)</span>
-                <span className="nav-item-disabled">Salary Rules (Phase 4)</span>
-              </div>
+        <nav className="topnav-links">
+          {canSee(user.role, 'employees') && (
+            <div
+              className="nav-dropdown"
+              onMouseEnter={() => setEmployeesMenuOpen(true)}
+              onMouseLeave={() => setEmployeesMenuOpen(false)}
+            >
+              <span className="nav-link">Employees ▾</span>
+              {employeesMenuOpen && (
+                <div className="nav-dropdown-menu">
+                  <Link to="/employees">Employees</Link>
+                  <Link to="/departments">Departments</Link>
+                  <Link to="/schedules">Working Schedules</Link>
+                </div>
+              )}
             </div>
           )}
 
-          {isAdmin && (
-            <NavLink to="/users" className="nav-item">
-              User Management
-            </NavLink>
+          <Link className="nav-link" to="/attendance">Attendance</Link>
+
+          {canSee(user.role, 'timeOff') && (
+            <div
+              className="nav-dropdown"
+              onMouseEnter={() => setTimeOffMenuOpen(true)}
+              onMouseLeave={() => setTimeOffMenuOpen(false)}
+            >
+              <span className="nav-link">Time Off ▾</span>
+              {timeOffMenuOpen && (
+                <div className="nav-dropdown-menu">
+                  <span className="nav-dropdown-stub">Requests (Phase 3)</span>
+                  <span className="nav-dropdown-stub">Allocations (Phase 3)</span>
+                  <span className="nav-dropdown-stub">Time Off Types (Phase 3)</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {canSee(user.role, 'payroll') && (
+            <div
+              className="nav-dropdown"
+              onMouseEnter={() => setPayrollMenuOpen(true)}
+              onMouseLeave={() => setPayrollMenuOpen(false)}
+            >
+              <span className="nav-link">Payroll ▾</span>
+              {payrollMenuOpen && (
+                <div className="nav-dropdown-menu">
+                  <span className="nav-dropdown-stub">Payruns (Phase 5)</span>
+                  <span className="nav-dropdown-stub">Salary Structures (Phase 4)</span>
+                  <span className="nav-dropdown-stub">Salary Rules (Phase 4)</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {canSee(user.role, 'userManagement') && (
+            <Link className="nav-link" to="/users">User Management</Link>
           )}
         </nav>
 
-        <div className="app-user">
-          <span className="app-user-name">
-            {user.employee ? user.employee.name : user.email}
-          </span>
-          <span className="app-user-role">{user.role}</span>
-          <button onClick={handleLogout} className="logout-btn">
-            Log out
-          </button>
+        <div className="topnav-user">
+          <span className="topnav-user-name">{user.employee?.name || user.email}</span>
+          <span className="topnav-user-role">{user.role}</span>
+          <button className="btn btn-ghost" onClick={handleLogout}>Log out</button>
         </div>
       </header>
 

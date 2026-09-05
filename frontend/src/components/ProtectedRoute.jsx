@@ -1,13 +1,11 @@
+import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /**
- * Wraps a page and redirects to /login if not authenticated.
- * Optionally restrict to a list of allowed roles - if the user's role
- * isn't in the list, they're redirected to /unauthorized.
- *
- * Note: this is a UX convenience only. The backend's requireRole()
- * middleware is the real enforcement layer - never trust this alone.
+ * Wraps a route. Redirects to /login if not authenticated.
+ * Pass allowedRoles={['Admin','HR Manager']} to also gate by role;
+ * unauthorized users are redirected to /unauthorized.
  */
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
