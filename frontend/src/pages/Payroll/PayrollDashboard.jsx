@@ -142,7 +142,7 @@ export default function PayrollDashboard() {
               <XAxis dataKey="department" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="net" fill="#714b67" />
+              <Bar dataKey="net" fill="#0271E4" />
             </BarChart>
           </ResponsiveContainer>
         </Panel>
@@ -153,7 +153,7 @@ export default function PayrollDashboard() {
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="net" stroke="#2e7d32" />
+              <Line type="monotone" dataKey="net" stroke="#2F8F4E" />
             </LineChart>
           </ResponsiveContainer>
         </Panel>

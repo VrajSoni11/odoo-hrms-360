@@ -116,11 +116,11 @@ export default function PayrunProcessing() {
                   <td>{detail.employeeName}</td>
                   <td>
                     {detail.status === "sent" ? (
-                      <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                      <span style={{ color: "var(--success)", fontWeight: 600 }}>
                         ✓ Sent
                       </span>
                     ) : (
-                      <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                      <span style={{ color: "var(--danger)", fontWeight: 600 }}>
                         ✗ Failed
                       </span>
                     )}
@@ -135,7 +135,7 @@ export default function PayrunProcessing() {
                         Preview email
                       </a>
                     ) : (
-                      <span style={{ color: "#dc2626" }}>
+                      <span style={{ color: "var(--danger)" }}>
                         {detail.errorMessage || "Unknown error"}
                       </span>
                     )}
