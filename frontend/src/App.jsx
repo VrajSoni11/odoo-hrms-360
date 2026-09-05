@@ -18,6 +18,8 @@ import MyTimeOffRequests from "./pages/TimeOff/MyTimeOffRequests.jsx";
 import TimeOffApprovals from "./pages/TimeOff/TimeOffApprovals.jsx";
 import TimeOffAllocations from "./pages/TimeOff/TimeOffAllocations.jsx";
 import TimeOffTypes from "./pages/TimeOff/TimeOffTypes.jsx";
+import SalaryStructuresPage from "./pages/Payroll/SalaryStructuresPage.jsx";
+import SalaryRulesPage from "./pages/Payroll/SalaryRulesPage.jsx";
 
 const MANAGE_ROLES = [
   "Admin",
@@ -25,6 +27,7 @@ const MANAGE_ROLES = [
   "HR Payroll User",
   "HR Payroll Manager",
 ];
+const PAYROLL_ROLES = ["Admin", "HR Payroll User", "HR Payroll Manager"];
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -50,6 +53,22 @@ export default function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/my-profile" element={<MyProfile />} />
         <Route path="/attendance" element={<AttendancePage />} />
+        <Route
+          path="/payroll/salary-structures"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <SalaryStructuresPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/salary-rules"
+          element={
+            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+              <SalaryRulesPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/time-off/my-requests" element={<MyTimeOffRequests />} />
         <Route
           path="/time-off/approvals"

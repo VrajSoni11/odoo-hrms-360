@@ -30,6 +30,8 @@ async function main() {
   await prisma.timeOffType.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.contract.deleteMany();
+  await prisma.salaryRule.deleteMany();
+  await prisma.salaryStructure.deleteMany();
   await prisma.scheduleLine.deleteMany();
   await prisma.workingSchedule.deleteMany();
   await prisma.user.deleteMany();
@@ -217,6 +219,16 @@ async function main() {
     },
   });
 
+  console.log('Creating salary structure and rules...');
+  const regularSalary = await prisma.salaryStructure.create({ data: { name: 'Regular Salary' } });
+  await prisma.salaryRule.createMany({ data: [
+    { structureId: regularSalary.id, name: 'Basic Salary', code: 'BASIC', category: 'basic', sequence: 10, computationMethod: 'fixed', amount: 100000 },
+    { structureId: regularSalary.id, name: 'House Rent Allowance', code: 'HRA', category: 'allowance', sequence: 20, computationMethod: 'percentage', percentageOf: 'BASIC', percentageRate: 40 },
+    { structureId: regularSalary.id, name: 'Gross Salary', code: 'GROSS', category: 'gross', sequence: 30, computationMethod: 'formula', formula: 'BASIC + HRA' },
+    { structureId: regularSalary.id, name: 'Provident Fund', code: 'PF', category: 'deduction', sequence: 40, computationMethod: 'percentage', percentageOf: 'BASIC', percentageRate: 12 },
+    { structureId: regularSalary.id, name: 'Net Salary', code: 'NET', category: 'net', sequence: 50, computationMethod: 'formula', formula: 'GROSS - PF' },
+  ] });
+
   console.log('Creating contracts...');
   // Priya: a closed historical contract, then a current active one
   await prisma.contract.create({
@@ -229,6 +241,7 @@ async function main() {
       endDate: new Date('2023-12-31'),
       wage: 140000,
       state: 'expired',
+      salaryStructureId: regularSalary.id,
     },
   });
   await prisma.contract.create({
@@ -241,6 +254,7 @@ async function main() {
       endDate: null,
       wage: 180000,
       state: 'active',
+      salaryStructureId: regularSalary.id,
     },
   });
 

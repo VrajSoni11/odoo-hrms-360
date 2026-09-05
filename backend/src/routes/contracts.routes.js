@@ -11,6 +11,7 @@ const CONTRACT_INCLUDE = {
   employee: { select: { id: true, name: true, workEmail: true } },
   department: true,
   schedule: true,
+  salaryStructure: true,
 };
 
 /**
@@ -104,7 +105,7 @@ router.get('/active-for-period', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { employeeId, departmentId, jobPosition, scheduleId, startDate, endDate, wage, state } = req.body;
+    const { employeeId, departmentId, jobPosition, scheduleId, salaryStructureId, startDate, endDate, wage, state } = req.body;
     if (!employeeId || !startDate || wage === undefined) {
       return res.status(400).json({ error: 'employeeId, startDate, and wage are required' });
     }
@@ -127,6 +128,7 @@ router.post('/', async (req, res) => {
         departmentId: departmentId || null,
         jobPosition: jobPosition || null,
         scheduleId: scheduleId || null,
+        salaryStructureId: salaryStructureId ? Number(salaryStructureId) : null,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         wage,
@@ -148,7 +150,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { employeeId, departmentId, jobPosition, scheduleId, startDate, endDate, wage, state } = req.body;
+    const { employeeId, departmentId, jobPosition, scheduleId, salaryStructureId, startDate, endDate, wage, state } = req.body;
 
     const overlap = await findOverlappingActiveContract({
       employeeId: Number(employeeId),
@@ -170,6 +172,7 @@ router.put('/:id', async (req, res) => {
         departmentId: departmentId || null,
         jobPosition: jobPosition || null,
         scheduleId: scheduleId || null,
+        salaryStructureId: salaryStructureId ? Number(salaryStructureId) : null,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         wage,
