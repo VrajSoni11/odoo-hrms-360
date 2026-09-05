@@ -117,9 +117,10 @@ model Contract {
   startDate         DateTime         @db.Date
   endDate           DateTime?        @db.Date
   wage              Decimal          @db.Decimal(12, 2)
-  salaryStructureId Int?             // placeholder FK, Salary Structure model arrives in Phase 4
   state             String           @default("draft") // draft/active/expired/cancelled
   createdAt         DateTime         @default(now())
+  salaryStructureId Int?
+  salaryStructure   SalaryStructure? @relation(fields: [salaryStructureId], references: [id])
 
   @@map("contracts")
 }
@@ -196,5 +197,39 @@ model TimeOffRequest {
 
   @@index([employeeId, status])
   @@map("time_off_requests")
+}
+
+model SalaryStructure {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  isActive  Boolean      @default(true)
+  rules     SalaryRule[]
+  contracts Contract[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("salary_structures")
+}
+
+model SalaryRule {
+  id               Int             @id @default(autoincrement())
+  structureId      Int
+  structure        SalaryStructure  @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  name             String
+  code             String
+  category         String
+  sequence         Int             @default(10)
+  computationMethod String
+  amount           Decimal?        @db.Decimal(12, 2)
+  percentageOf     String?
+  percentageRate   Decimal?        @db.Decimal(7, 4)
+  formula          String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([structureId, code])
+  @@index([structureId, sequence])
+  @@map("salary_rules")
 }
 

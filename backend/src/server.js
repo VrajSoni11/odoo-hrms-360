@@ -12,6 +12,8 @@ const attendanceRoutes = require('./routes/attendance.routes');
 const timeOffTypesRoutes = require('./routes/timeOffTypes.routes');
 const timeOffAllocationsRoutes = require('./routes/timeOffAllocations.routes');
 const timeOffRequestsRoutes = require('./routes/timeOffRequests.routes');
+const salaryStructuresRoutes = require('./routes/salaryStructures.routes');
+const salaryRulesRoutes = require('./routes/salaryRules.routes');
 
 const app = express();
 
@@ -31,6 +33,8 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/time-off-types', timeOffTypesRoutes);
 app.use('/api/time-off-allocations', timeOffAllocationsRoutes);
 app.use('/api/time-off-requests', timeOffRequestsRoutes);
+app.use('/api/salary-structures', salaryStructuresRoutes);
+app.use('/api/salary-rules', salaryRulesRoutes);
 
 // Central error handler (catches anything thrown outside try/catch blocks)
 app.use((err, req, res, next) => {
