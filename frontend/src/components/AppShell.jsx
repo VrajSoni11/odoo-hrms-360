@@ -3,14 +3,11 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import AttendanceWidget from "./AttendanceWidget.jsx";
 import {
-  Bell,
   CalendarRange,
   ChevronDown,
   Clock,
   LogOut,
   Menu,
-  Search,
-  Settings,
   ShieldCheck,
   User,
   Users,
@@ -166,7 +163,9 @@ export default function AppShell() {
                 <Link className="sidebar-link" to="/payroll/dashboard">Dashboard</Link>
                 <Link className="sidebar-link" to="/payroll/payruns">Payruns</Link>
                 <Link className="sidebar-link" to="/payroll/salary-structures">Salary Structures</Link>
-                <Link className="sidebar-link" to="/payroll/salary-rules">Salary Rules</Link>
+                {user.role === "Admin" && (
+                  <Link className="sidebar-link" to="/payroll/salary-rules">Salary Rules</Link>
+                )}
                 <Link className="sidebar-link" to="/payroll/payslips">Payslips</Link>
               </NavGroup>
             </>
@@ -199,19 +198,10 @@ export default function AppShell() {
             {breadcrumbFor(location.pathname)}
           </div>
 
-          <div className="topbar-search">
-            <Search size={15} />
-            <input placeholder="Search employees, payruns…" />
-          </div>
-
           <div className="topbar-spacer" />
 
           <div className="topbar-actions">
             {user.employee && <AttendanceWidget />}
-            <button className="topbar-icon-btn" title="Notifications">
-              <Bell size={17} />
-              <span className="topbar-icon-dot" />
-            </button>
 
             <div className="topbar-user" ref={menuRef}>
               <button
@@ -240,9 +230,6 @@ export default function AppShell() {
                   >
                     <User size={16} /> My Profile
                   </Link>
-                  <button className="user-dropdown-item" type="button" disabled>
-                    <Settings size={16} /> Settings
-                  </button>
                   <button
                     className="user-dropdown-item danger"
                     type="button"

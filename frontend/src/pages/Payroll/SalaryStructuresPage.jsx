@@ -140,14 +140,18 @@ export default function SalaryStructuresPage() {
             {structures.map((s) => (
               <tr key={s.id}>
                 <td>
-                  <button
-                    className="btn btn-small btn-secondary"
-                    onClick={() =>
-                      navigate(`/payroll/salary-rules?structureId=${s.id}`)
-                    }
-                  >
-                    {s.name}
-                  </button>
+                  {user.role === "Admin" ? (
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() =>
+                        navigate(`/payroll/salary-rules?structureId=${s.id}`)
+                      }
+                    >
+                      {s.name}
+                    </button>
+                  ) : (
+                    s.name
+                  )}
                 </td>
                 <td>{s._count?.rules ?? 0}</td>
                 <td>{s._count?.contracts ?? 0}</td>

@@ -34,6 +34,11 @@ const MANAGE_ROLES = [
   "HR Payroll Manager",
 ];
 const PAYROLL_ROLES = ["Admin", "HR Payroll User", "HR Payroll Manager"];
+// Salary Rules are Admin-only.
+const SALARY_RULES_ROLES = ["Admin"];
+// Only Admin / HR Manager can create or edit contracts; other payroll
+// roles can still view the Contracts list.
+const CONTRACT_WRITE_ROLES = ["Admin", "HR Manager"];
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -78,7 +83,7 @@ export default function App() {
         <Route
           path="/payroll/salary-rules"
           element={
-            <ProtectedRoute allowedRoles={PAYROLL_ROLES}>
+            <ProtectedRoute allowedRoles={SALARY_RULES_ROLES}>
               <SalaryRulesPage />
             </ProtectedRoute>
           }

@@ -5,6 +5,12 @@ import client from '../../api/client';
 import ContractFormModal from './ContractFormModal.jsx';
 import { SkeletonTable } from '../../components/ui/Skeleton.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+
+// Only Admin / HR Manager may create, edit, or delete contracts. Other
+// payroll roles that can see this page (HR Payroll User/Manager) get a
+// read-only view.
+const CONTRACT_WRITE_ROLES = ['Admin', 'HR Manager'];
 
 function isCurrentlyActive(contract) {
   if (contract.state !== 'active') return false;
@@ -15,6 +21,8 @@ function isCurrentlyActive(contract) {
 }
 
 export default function ContractsPage() {
+  const { user } = useAuth();
+  const canWrite = CONTRACT_WRITE_ROLES.includes(user.role);
   const [searchParams] = useSearchParams();
   const employeeIdFilter = searchParams.get('employeeId');
 
@@ -69,9 +77,11 @@ export default function ContractsPage() {
             {filterLabel ? `Showing contracts for ${filterLabel}` : loading ? 'Loading…' : `${contracts.length} contract(s) on record`}
           </div>
         </div>
-        <div className="page-header-actions">
-          <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button>
-        </div>
+        {canWrite && (
+          <div className="page-header-actions">
+            <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button>
+          </div>
+        )}
       </div>
       {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
 
@@ -81,13 +91,13 @@ export default function ContractsPage() {
         <EmptyState
           icon={FileSignature}
           title="No contracts yet"
-          description="Create a contract to define an employee's wage, schedule and salary structure."
-          action={<button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button>}
+          description={canWrite ? "Create a contract to define an employee's wage, schedule and salary structure." : "No contracts have been created yet."}
+          action={canWrite ? <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> New Contract</button> : undefined}
         />
       ) : (
         <table className="data-table">
           <thead>
-            <tr><th>Employee</th><th>Job Position</th><th>Start</th><th>End</th><th>Wage</th><th>State</th><th></th></tr>
+            <tr><th>Employee</th><th>Job Position</th><th>Start</th><th>End</th><th>Wage</th><th>State</th>{canWrite && <th></th>}</tr>
           </thead>
           <tbody>
             {contracts.map((c) => (
@@ -101,17 +111,19 @@ export default function ContractsPage() {
                   <span className={`badge badge-contract-${c.state}`}>{c.state}</span>
                   {isCurrentlyActive(c) && <span className="badge badge-current">CURRENT</span>}
                 </td>
-                <td className="row-actions">
-                  <button className="btn btn-small btn-secondary" onClick={() => openEdit(c)}><Pencil size={13} /> Edit</button>
-                  <button className="btn btn-small btn-danger" onClick={() => handleDelete(c)}><Trash2 size={13} /> Delete</button>
-                </td>
+                {canWrite && (
+                  <td className="row-actions">
+                    <button className="btn btn-small btn-secondary" onClick={() => openEdit(c)}><Pencil size={13} /> Edit</button>
+                    <button className="btn btn-small btn-danger" onClick={() => handleDelete(c)}><Trash2 size={13} /> Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       )}
 
-      {showForm && (
+      {canWrite && showForm && (
         <ContractFormModal
           contract={editingContract}
           defaultEmployeeId={employeeIdFilter}

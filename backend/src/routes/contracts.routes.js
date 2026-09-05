@@ -4,6 +4,9 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 const MANAGE_ROLES = ['Admin', 'HR Manager', 'HR Payroll User', 'HR Payroll Manager'];
+// Only Admin / HR Manager may create, edit, or delete contracts. The other
+// payroll roles can still view contracts (read-only) for payroll purposes.
+const CREATE_ROLES = ['Admin', 'HR Manager'];
 
 router.use(authenticate, requireRole(...MANAGE_ROLES));
 
@@ -103,7 +106,7 @@ router.get('/active-for-period', async (req, res) => {
   res.json(matches[0]);
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole(...CREATE_ROLES), async (req, res) => {
   try {
     const { employeeId, departmentId, jobPosition, scheduleId, salaryStructureId, startDate, endDate, wage, state } = req.body;
     if (!employeeId || !startDate || wage === undefined) {
@@ -147,7 +150,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole(...CREATE_ROLES), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { employeeId, departmentId, jobPosition, scheduleId, salaryStructureId, startDate, endDate, wage, state } = req.body;
@@ -190,7 +193,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole(...CREATE_ROLES), async (req, res) => {
   try {
     await prisma.contract.delete({ where: { id: Number(req.params.id) } });
     res.json({ ok: true });

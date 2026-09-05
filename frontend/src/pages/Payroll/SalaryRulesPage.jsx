@@ -13,7 +13,9 @@ import { AlertCircle, Calculator, ListTree, Pencil, Plus, Trash2, X } from "luci
 import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
 
-const WRITE_ROLES = ["Admin", "HR Payroll Manager"];
+// This page is Admin-only (see App.jsx route guard) — HR Payroll User and
+// HR Payroll Manager no longer have access to Salary Rules.
+const WRITE_ROLES = ["Admin"];
 const initial = {
   name: "",
   code: "",
