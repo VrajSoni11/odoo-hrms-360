@@ -30,7 +30,7 @@ export default function TimeOffAllocations() {
   };
   useEffect(() => {
     load();
-    getEmployees().then(({ data }) => setEmployees(data));
+    getEmployees({ all: true }).then(({ data }) => setEmployees(data));
     getTimeOffTypes().then(({ data }) => setTypes(data));
   }, []);
   async function submit(e) {

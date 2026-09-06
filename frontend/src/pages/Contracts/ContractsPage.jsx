@@ -38,7 +38,7 @@ export default function ContractsPage() {
     const params = employeeIdFilter ? { employeeId: employeeIdFilter } : {};
     Promise.all([
       client.get('/contracts', { params }),
-      client.get('/employees'),
+      client.get('/employees', { params: { all: true } }),
     ])
       .then(([contractsRes, employeesRes]) => {
         setContracts(contractsRes.data);

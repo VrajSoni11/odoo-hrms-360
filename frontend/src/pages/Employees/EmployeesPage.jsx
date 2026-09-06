@@ -6,6 +6,9 @@ import EmployeeFormModal from './EmployeeFormModal.jsx';
 import StatusBadge from '../../components/ui/StatusBadge.jsx';
 import { SkeletonTable } from '../../components/ui/Skeleton.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import Pagination from '../../components/ui/Pagination.jsx';
+
+const PAGE_SIZE = 15;
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
@@ -15,11 +18,19 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  // Server-side pagination — the backend only ever ships one page (15
+  // records by default) at a time; requesting page 2, 3, ... asks it for
+  // the next slice rather than loading the whole workforce up front.
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
+
+  const load = useCallback(async (targetPage = 1) => {
     setLoading(true);
     try {
-      const { data } = await client.get('/employees');
-      setEmployees(data);
+      const { data } = await client.get('/employees', { params: { page: targetPage, limit: PAGE_SIZE } });
+      setEmployees(data.data);
+      setPagination(data.pagination);
+      setPage(data.pagination.page);
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load employees');
     } finally {
@@ -27,7 +38,17 @@ export default function EmployeesPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(page); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goToPage = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === page) return;
+    load(nextPage);
+  };
+
+  // Mutations (create/edit/delete) refresh whichever page we're currently on,
+  // except delete, which can leave the current page empty — in that case
+  // step back a page instead of showing a blank table.
+  const reloadCurrentPage = () => load(page);
 
   const openCreate = () => { setEditingEmployee(null); setShowForm(true); };
   const openEdit = (emp) => { setEditingEmployee(emp); setShowForm(true); };
@@ -36,7 +57,10 @@ export default function EmployeesPage() {
     if (!window.confirm(`Delete ${emp.name}? This cannot be undone.`)) return;
     try {
       await client.delete(`/employees/${emp.id}`);
-      load();
+      // If that was the last record on this page, drop back a page so we
+      // never render an empty page while later pages still have records.
+      const isLastRowOnPage = employees.length === 1 && page > 1;
+      load(isLastRowOnPage ? page - 1 : page);
     } catch (err) {
       alert(err.response?.data?.error || 'Could not delete employee');
     }
@@ -55,7 +79,13 @@ export default function EmployeesPage() {
         <div>
           <div className="page-eyebrow">Workforce</div>
           <h1>Employees</h1>
-          <div className="page-subtitle">{loading ? 'Loading…' : `${employees.length} total employees`}</div>
+          <div className="page-subtitle">
+            {loading
+              ? 'Loading…'
+              : pagination.total === 0
+                ? '0 total employees'
+                : `Showing ${(pagination.page - 1) * pagination.limit + 1}–${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total} employees`}
+          </div>
         </div>
         <div className="page-header-actions">
           <div className="view-toggle">
@@ -120,11 +150,15 @@ export default function EmployeesPage() {
         </div>
       )}
 
+      {!loading && employees.length > 0 && (
+        <Pagination page={page} totalPages={pagination.totalPages} onPageChange={goToPage} />
+      )}
+
       {showForm && (
         <EmployeeFormModal
           employee={editingEmployee}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); load(); }}
+          onSaved={() => { setShowForm(false); reloadCurrentPage(); }}
         />
       )}
     </div>

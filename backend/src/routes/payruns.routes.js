@@ -12,8 +12,35 @@ const PAYROLL_ROLES = ['Admin', 'HR Payroll User', 'HR Payroll Manager'];
 const MANAGER_ROLES = ['Admin', 'HR Payroll Manager'];
 router.use(authenticate, requireRole(...PAYROLL_ROLES));
 const summary = { _count: { select: { employees: true, payslips: true, warnings: true } }, salaryStructure: true };
+const DEFAULT_PAGE_SIZE = 15;
+const MAX_PAGE_SIZE = 100;
 
-router.get('/', async (req, res) => res.json(await prisma.payrun.findMany({ include: summary, orderBy: { createdAt: 'desc' } })));
+// GET /api/payruns — list
+//
+// Backend-paginated, 15 per page by default, same shape/params as the
+// employees and payslips lists:
+//   GET /api/payruns                 -> first page, 15 records
+//   GET /api/payruns?page=2&limit=25
+//   GET /api/payruns?all=true        -> full, unpaginated list
+router.get('/', async (req, res) => {
+  if (req.query.all === 'true') {
+    return res.json(await prisma.payrun.findMany({ include: summary, orderBy: { createdAt: 'desc' } }));
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_PAGE_SIZE));
+  const skip = (page - 1) * limit;
+
+  const [runs, total] = await Promise.all([
+    prisma.payrun.findMany({ include: summary, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+    prisma.payrun.count(),
+  ]);
+
+  res.json({
+    data: runs,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
+});
 router.get('/eligible-employees', async (req, res) => {
   const { periodStart, periodEnd } = req.query;
   if (!periodStart || !periodEnd) return res.status(400).json({ error: 'periodStart and periodEnd are required' });

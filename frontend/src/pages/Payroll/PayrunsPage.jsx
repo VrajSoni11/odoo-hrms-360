@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, Plus, Trash2, Wallet } from "lucide-react";
 import { deletePayrun, getPayruns } from "../../api/payroll.api";
@@ -6,6 +6,9 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import StatusBadge from "../../components/ui/StatusBadge.jsx";
 import { SkeletonTable } from "../../components/ui/Skeleton.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
+import Pagination from "../../components/ui/Pagination.jsx";
+
+const PAGE_SIZE = 15;
 
 export default function PayrunsPage() {
   const { user } = useAuth();
@@ -13,25 +16,53 @@ export default function PayrunsPage() {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const load = () => {
+
+  // Server-side pagination — the backend only ever ships one page (15
+  // records by default) at a time.
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
+
+  const load = useCallback((targetPage = 1) => {
     setLoading(true);
-    getPayruns()
-      .then(({ data }) => setRuns(data))
-      .catch((err) =>
-        setError(err.response?.data?.error || "Could not load payruns"),
-      )
+    getPayruns({ page: targetPage, limit: PAGE_SIZE })
+      .then(({ data }) => {
+        setRuns(data.data);
+        setPagination(data.pagination);
+        setPage(data.pagination.page);
+      })
+      .catch((err) => setError(err.response?.data?.error || "Could not load payruns"))
       .finally(() => setLoading(false));
-  };
-  useEffect(() => {
-    load();
   }, []);
+
+  useEffect(() => { load(page); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goToPage = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === page) return;
+    load(nextPage);
+  };
+
+  const handleDelete = (run) => {
+    deletePayrun(run.id).then(() => {
+      // If that was the last row on this page, drop back a page so we
+      // never render an empty page while later pages still have records.
+      const isLastRowOnPage = runs.length === 1 && page > 1;
+      load(isLastRowOnPage ? page - 1 : page);
+    });
+  };
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <div className="page-eyebrow">Finance</div>
           <h1>Payruns</h1>
-          <div className="page-subtitle">{loading ? "Loading…" : `${runs.length} payrun(s)`}</div>
+          <div className="page-subtitle">
+            {loading
+              ? "Loading…"
+              : pagination.total === 0
+                ? "0 payrun(s)"
+                : `Showing ${(pagination.page - 1) * pagination.limit + 1}–${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total} payrun(s)`}
+          </div>
         </div>
         <div className="page-header-actions">
           <Link className="btn btn-primary" to="/payroll/payruns/new">
@@ -81,7 +112,7 @@ export default function PayrunsPage() {
                   {canDelete && run.status === "draft" && (
                     <button
                       className="btn btn-small btn-danger"
-                      onClick={() => deletePayrun(run.id).then(load)}
+                      onClick={() => handleDelete(run)}
                     >
                       <Trash2 size={13} /> Delete
                     </button>
@@ -91,6 +122,10 @@ export default function PayrunsPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {!loading && runs.length > 0 && (
+        <Pagination page={page} totalPages={pagination.totalPages} onPageChange={goToPage} />
       )}
     </div>
   );

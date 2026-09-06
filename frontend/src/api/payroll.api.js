@@ -1,6 +1,6 @@
 import client from './client';
 
-export const getPayruns = () => client.get('/payruns');
+export const getPayruns = (params) => client.get('/payruns', { params });
 export const getPayrun = (id) => client.get(`/payruns/${id}`);
 export const getEligibleEmployees = (periodStart, periodEnd, params = {}) => client.get('/payruns/eligible-employees', { params: { periodStart, periodEnd, ...params } });
 export const createPayrun = (data) => client.post('/payruns', data);

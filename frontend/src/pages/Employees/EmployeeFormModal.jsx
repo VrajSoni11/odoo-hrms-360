@@ -15,7 +15,7 @@ export default function EmployeeFormModal({ employee, onClose, onSaved }) {
   useEffect(() => {
     client.get('/departments').then((r) => setDepartments(r.data));
     client.get('/schedules').then((r) => setSchedules(r.data));
-    client.get('/employees').then((r) => setManagers(r.data));
+    client.get('/employees', { params: { all: true } }).then((r) => setManagers(r.data));
   }, []);
 
   useEffect(() => {

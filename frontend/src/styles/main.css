@@ -509,6 +509,39 @@ input:disabled, select:disabled { opacity: 0.55; background: var(--bg-panel-alt)
 .data-table th.amount, .data-table td.amount { text-align: right; font-variant-numeric: tabular-nums; }
 .field-row strong.amount { font-variant-numeric: tabular-nums; }
 .row-actions { white-space: nowrap; }
+
+/* Pagination bar shown under paginated tables/kanban boards (e.g. Employees) */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.pagination-nav-btn { display: inline-flex; align-items: center; gap: 4px; margin-right: 0; }
+.pagination-numbers { display: flex; align-items: center; gap: 4px; }
+.pagination-number {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .1s var(--ease), border-color .1s var(--ease);
+}
+.pagination-number:hover:not(:disabled) { background: var(--bg-panel-alt); border-color: var(--text-faint); }
+.pagination-number.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  cursor: default;
+}
+.pagination-ellipsis { color: var(--text-muted); padding: 0 2px; font-size: 13px; }
 table.data-table {
   background: var(--bg-panel);
   border: 1px solid var(--border);

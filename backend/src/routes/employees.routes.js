@@ -39,12 +39,57 @@ router.get('/me', async (req, res) => {
 });
 
 // GET /api/employees — list (HR Manager and above only)
+//
+// Supports backend pagination so large workforces don't get shipped to the
+// client in one shot:
+//   GET /api/employees              -> first page, 15 records
+//   GET /api/employees?page=2       -> second page (still 15 per page)
+//   GET /api/employees?page=2&limit=25
+//   GET /api/employees?all=true     -> full, unpaginated list (used by
+//                                      dropdowns/selects elsewhere in the
+//                                      app that need every employee, e.g.
+//                                      the manager picker or filters)
+const DEFAULT_PAGE_SIZE = 15;
+const MAX_PAGE_SIZE = 100;
+
 router.get('/', requireRole(...MANAGE_ROLES), async (req, res) => {
-  const employees = await prisma.employee.findMany({
-    include: EMPLOYEE_INCLUDE,
-    orderBy: { name: 'asc' },
+  // Dropdowns/selects that need the complete roster (not a single page)
+  // opt in explicitly with ?all=true and keep getting a plain array back,
+  // so nothing else in the app breaks.
+  if (req.query.all === 'true') {
+    const employees = await prisma.employee.findMany({
+      include: EMPLOYEE_INCLUDE,
+      orderBy: { name: 'asc' },
+    });
+    return res.json(employees);
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_PAGE_SIZE),
+  );
+  const skip = (page - 1) * limit;
+
+  const [employees, total] = await Promise.all([
+    prisma.employee.findMany({
+      include: EMPLOYEE_INCLUDE,
+      orderBy: { name: 'asc' },
+      skip,
+      take: limit,
+    }),
+    prisma.employee.count(),
+  ]);
+
+  res.json({
+    data: employees,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
   });
-  res.json(employees);
 });
 
 // GET /api/employees/:id — detail, with smart-button counts

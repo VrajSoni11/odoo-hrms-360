@@ -11,11 +11,42 @@ router.use(authenticate, requireRole(...PAYROLL_ROLES));
 const include = { employee: true, contract: true, payrun: { include: { salaryStructure: true } }, lines: { orderBy: { sequence: 'asc' }, include: { salaryRule: true } } };
 const datePart = (value) => new Date(value).toISOString().slice(0, 10);
 
+const DEFAULT_PAGE_SIZE = 15;
+const MAX_PAGE_SIZE = 100;
+
+// GET /api/payslips — list
+//
+// Backend-paginated, 15 per page by default, same shape/params as the
+// employees list:
+//   GET /api/payslips                 -> first page, 15 records
+//   GET /api/payslips?page=2&limit=25
+//   GET /api/payslips?all=true        -> full, unpaginated list (kept for
+//                                         any future consumer that needs
+//                                         every record at once)
+// Existing filters (?payrunId, ?employeeId) still apply on top of paging.
 router.get('/', async (req, res) => {
   const where = { ...(req.query.payrunId ? { payrunId: Number(req.query.payrunId) } : {}), ...(req.query.employeeId ? { employeeId: Number(req.query.employeeId) } : {}) };
   if (req.user.roleName === 'Employee') where.employeeId = req.user.employeeId || -1;
-  res.json(await prisma.payslip.findMany({ where, include, orderBy: { employeeId: 'asc' } }));
+
+  if (req.query.all === 'true') {
+    return res.json(await prisma.payslip.findMany({ where, include, orderBy: { employeeId: 'asc' } }));
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_PAGE_SIZE));
+  const skip = (page - 1) * limit;
+
+  const [slips, total] = await Promise.all([
+    prisma.payslip.findMany({ where, include, orderBy: { employeeId: 'asc' }, skip, take: limit }),
+    prisma.payslip.count({ where }),
+  ]);
+
+  res.json({
+    data: slips,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
 });
+
 router.get('/:id/pdf', async (req, res) => {
   try {
     const payslip = await prisma.payslip.findUnique({ where: { id: Number(req.params.id) }, include });
