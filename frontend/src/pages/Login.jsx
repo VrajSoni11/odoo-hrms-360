@@ -95,17 +95,6 @@ export default function Login() {
               {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
-
-          <div className="login-hint">
-            Seeded logins (password: <code>Password@123</code>)
-            <ul>
-              <li>admin@peoplepay360.demo</li>
-              <li>hrmanager@peoplepay360.demo</li>
-              <li>payrolluser@peoplepay360.demo</li>
-              <li>payrollmanager@peoplepay360.demo</li>
-              <li>employee@peoplepay360.demo</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

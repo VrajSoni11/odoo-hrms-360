@@ -22,13 +22,23 @@ export default function AttendanceWidget() {
   const intervalRef = useRef(null);
 
   // On mount, check whether there's already an open check-in
-  // (e.g. user refreshed the page mid-shift).
+  // (e.g. user refreshed the page mid-shift). We only treat it as an
+  // active session if it actually started today — a record left open
+  // from a previous day (missed checkout) shouldn't show a multi-day
+  // running timer in the header. Clicking "Check In" in that case lets
+  // the backend auto-close the stale record and start a fresh one.
   useEffect(() => {
     async function loadStatus() {
       try {
         const { data } = await getMyAttendance();
         const open = data.find((r) => !r.checkOut);
-        setActive(open || null);
+        if (open) {
+          const openDay = new Date(open.checkIn); openDay.setHours(0, 0, 0, 0);
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          setActive(openDay.getTime() === today.getTime() ? open : null);
+        } else {
+          setActive(null);
+        }
       } catch (err) {
         console.error("Failed to load attendance status", err);
       }

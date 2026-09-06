@@ -29,8 +29,35 @@ router.get('/kpis', async (req, res) => {
 });
 
 router.get('/salary-by-department', async (req, res) => {
-  const { start, end } = period(req.query); const slips = await prisma.payslip.findMany({ where: { periodStart: { lte: end }, periodEnd: { gte: start }, status: 'paid', employee: employeeWhere(req.query) }, select: { netAmount: true, employee: { select: { department: { select: { name: true } } } } } });
-  const grouped = {}; slips.forEach((s) => { const name = s.employee.department?.name || 'Unassigned'; grouped[name] ||= { department: name, net: 0 }; grouped[name].net += Number(s.netAmount); }); res.json(Object.values(grouped));
+  const { start, end } = period(req.query);
+  // Bars are driven by each department's *active contract* wage bill, not by
+  // which departments happen to have a processed/paid payslip in the exact
+  // selected period — payroll for a given month can lag behind for some
+  // departments, and that used to leave every bar but one empty. Using the
+  // live contract cost means every department with staff always shows a
+  // real value, and it always adds up to the same total as the Department
+  // Overview panel below.
+  const employees = await prisma.employee.findMany({
+    where: employeeWhere(req.query),
+    include: { department: true, contracts: { where: { state: 'active' } } },
+  });
+  const grouped = {};
+  employees.forEach((e) => {
+    const name = e.department?.name || 'Unassigned';
+    grouped[name] ||= { department: name, departmentId: e.department?.id ?? null, net: 0, paidThisPeriod: 0, headcount: 0 };
+    grouped[name].headcount += 1;
+    grouped[name].net += e.contracts.reduce((sum, c) => sum + Number(c.wage), 0);
+  });
+  const slips = await prisma.payslip.findMany({
+    where: { periodStart: { lte: end }, periodEnd: { gte: start }, status: 'paid', employee: employeeWhere(req.query) },
+    select: { netAmount: true, employee: { select: { department: { select: { id: true, name: true } } } } },
+  });
+  slips.forEach((s) => {
+    const name = s.employee.department?.name || 'Unassigned';
+    grouped[name] ||= { department: name, departmentId: s.employee.department?.id ?? null, net: 0, paidThisPeriod: 0, headcount: 0 };
+    grouped[name].paidThisPeriod += Number(s.netAmount);
+  });
+  res.json(Object.values(grouped).sort((a, b) => b.net - a.net));
 });
 
 router.get('/salary-trend', async (req, res) => {
@@ -40,7 +67,19 @@ router.get('/salary-trend', async (req, res) => {
 
 router.get('/attendance-overview', async (req, res) => { const { start, end } = period(req.query); const rows = await prisma.attendance.findMany({ where: { checkIn: { gte: start, lte: end }, employee: employeeWhere(req.query) }, select: { status: true, source: true, checkOut: true } }); const result = { Present: 0, Late: 0, Absent: 0, Overtime: 0, 'Missing Checkouts': 0, 'Manual Edits': 0 }; rows.forEach((r) => { result[r.status] = (result[r.status] || 0) + 1; if (!r.checkOut) result['Missing Checkouts'] += 1; if (r.source === 'manual') result['Manual Edits'] += 1; }); res.json(result); });
 router.get('/timeoff-overview', async (req, res) => { const { start, end } = period(req.query); const [approved, pending, balances] = await Promise.all([prisma.timeOffRequest.aggregate({ where: { status: 'approved', startDate: { lte: end }, endDate: { gte: start } }, _sum: { requestedAmount: true } }), prisma.timeOffRequest.count({ where: { status: 'pending' } }), prisma.timeOffAllocation.aggregate({ where: { status: 'approved' }, _sum: { remainingAmount: true } })]); res.json({ approvedDays: Number(approved._sum.requestedAmount || 0), pendingRequests: pending, remainingBalance: Number(balances._sum.remainingAmount || 0) }); });
-router.get('/department-overview', async (req, res) => { const employees = await prisma.employee.findMany({ where: employeeWhere(req.query), include: { department: true, contracts: { where: { state: 'active' } } } }); const grouped = {}; employees.forEach((e) => { const name = e.department?.name || 'Unassigned'; grouped[name] ||= { department: name, headcount: 0, salaryExpenditure: 0 }; grouped[name].headcount += 1; grouped[name].salaryExpenditure += e.contracts.reduce((sum, c) => sum + Number(c.wage), 0); }); res.json(Object.values(grouped)); });
+router.get('/department-overview', async (req, res) => {
+  const employees = await prisma.employee.findMany({ where: employeeWhere(req.query), include: { department: true, contracts: { where: { state: 'active' } } } });
+  const grouped = {};
+  employees.forEach((e) => {
+    const name = e.department?.name || 'Unassigned';
+    grouped[name] ||= { department: name, departmentId: e.department?.id ?? null, headcount: 0, salaryExpenditure: 0 };
+    grouped[name].headcount += 1;
+    grouped[name].salaryExpenditure += e.contracts.reduce((sum, c) => sum + Number(c.wage), 0);
+  });
+  const rows = Object.values(grouped).sort((a, b) => b.salaryExpenditure - a.salaryExpenditure);
+  const total = rows.reduce((sum, r) => sum + r.salaryExpenditure, 0);
+  res.json(rows.map((r) => ({ ...r, share: total ? Number(((r.salaryExpenditure / total) * 100).toFixed(1)) : 0 })));
+});
 router.get('/alerts', async (req, res) => {
   const { start, end } = period(req.query);
   const [warnings, employees] = await Promise.all([

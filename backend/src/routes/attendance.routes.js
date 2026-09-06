@@ -31,9 +31,30 @@ router.post('/check-in', authenticate, async (req, res) => {
 
     const open = await prisma.attendance.findFirst({
       where: { employeeId, checkOut: null },
+      orderBy: { checkIn: 'desc' },
     });
     if (open) {
-      return res.status(409).json({ error: 'Already checked in', attendance: open });
+      const openDay = new Date(open.checkIn); openDay.setHours(0, 0, 0, 0);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (openDay.getTime() === today.getTime()) {
+        // Genuinely still checked in from earlier today — block the duplicate.
+        return res.status(409).json({ error: 'Already checked in', attendance: open });
+      }
+      // A record from a previous day was never checked out (missed checkout,
+      // crashed tab, etc). Rather than let it keep accumulating hours
+      // forever and blocking every future check-in, auto-close it at the
+      // end of that day and flag it, then let this check-in proceed.
+      const autoCheckout = new Date(open.checkIn);
+      autoCheckout.setHours(23, 59, 59, 999);
+      await prisma.attendance.update({
+        where: { id: open.id },
+        data: {
+          checkOut: autoCheckout,
+          status: 'checked_out',
+          workedHours: computeHours(open.checkIn, autoCheckout),
+          note: [open.note, 'Auto-closed: missing checkout'].filter(Boolean).join(' | '),
+        },
+      });
     }
 
     const attendance = await prisma.attendance.create({

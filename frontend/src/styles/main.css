@@ -683,6 +683,25 @@ table.data-table {
 .dashboard-table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: .04em; }
 .dashboard-table th.amount, .dashboard-table td.amount { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* Contain any table that might get wider than its card on small panels —
+   scroll inside the card instead of the content bleeding past the rounded
+   corners. */
+.table-scroll { width: 100%; overflow-x: auto; }
+.dashboard-table--departments { table-layout: fixed; min-width: 460px; }
+.dashboard-table--departments th:nth-child(1),
+.dashboard-table--departments td:nth-child(1) { width: 34%; }
+.dashboard-table--departments th:nth-child(2),
+.dashboard-table--departments td:nth-child(2) { width: 16%; }
+.dashboard-table--departments th:nth-child(3),
+.dashboard-table--departments td:nth-child(3) { width: 28%; }
+.dashboard-table--departments th:nth-child(4),
+.dashboard-table--departments td:nth-child(4) { width: 22%; }
+.dashboard-table--departments td.share-cell { overflow: hidden; }
+.share-bar-wrap { display: flex; align-items: center; gap: 6px; max-width: 100%; }
+.share-bar-track { flex: 1 1 auto; min-width: 0; height: 6px; border-radius: 999px; background: var(--bg-sunken); overflow: hidden; }
+.share-bar-fill { height: 100%; background: var(--indigo-500); border-radius: inherit; }
+.share-bar-label { flex: 0 0 auto; font-size: 11.5px; color: var(--text-muted); min-width: 30px; text-align: right; }
+
 .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .panel {
   background: var(--bg-panel);
