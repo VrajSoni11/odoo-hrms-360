@@ -10,7 +10,6 @@
     "db:constraint": "node prisma/afterMigrate.js",
     "db:setup": "npm run db:migrate && npm run db:constraint",
     "seed": "node prisma/seed.js",
-    "generate:demo-data": "node prisma/generateDemoData.js",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {

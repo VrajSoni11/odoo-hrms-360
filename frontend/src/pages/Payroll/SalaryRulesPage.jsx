@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   createSalaryRule,
   deleteSalaryRule,
   getSalaryRules,
   getSalaryStructure,
+  getSalaryStructures,
   previewSalary,
   updateSalaryRule,
 } from "../../api/salary.api";
@@ -30,11 +31,14 @@ const initial = {
 };
 
 export default function SalaryRulesPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const structureId = params.get("structureId");
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canWrite = WRITE_ROLES.includes(user.role);
   const [structure, setStructure] = useState(null);
+  const [structures, setStructures] = useState([]);
+  const [structuresLoading, setStructuresLoading] = useState(true);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(initial);
@@ -42,6 +46,19 @@ export default function SalaryRulesPage() {
   const [preview, setPreview] = useState(null);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
+
+  // Always load the list of structures so we can offer a picker, whether
+  // or not a structureId is already present in the URL.
+  useEffect(() => {
+    setStructuresLoading(true);
+    getSalaryStructures()
+      .then(({ data }) => setStructures(data))
+      .catch((err) =>
+        setError(err.response?.data?.error || "Could not load salary structures"),
+      )
+      .finally(() => setStructuresLoading(false));
+  }, []);
+
   const load = () => {
     if (!structureId) return;
     setLoading(true);
@@ -79,6 +96,16 @@ export default function SalaryRulesPage() {
       setError(err.response?.data?.error || "Could not preview salary");
     }
   }
+  function selectStructure(e) {
+    const id = e.target.value;
+    setEditing(null);
+    setForm(initial);
+    setPreview(null);
+    setError("");
+    if (id) setParams({ structureId: id });
+    else setParams({});
+  }
+
   if (!structureId)
     return (
       <div className="page">
@@ -88,10 +115,47 @@ export default function SalaryRulesPage() {
             <h1>Salary Rules</h1>
           </div>
         </div>
+        <div className="card">
+          <label>
+            Salary structure
+            <select
+              value=""
+              disabled={structuresLoading}
+              onChange={selectStructure}
+            >
+              <option value="" disabled>
+                {structuresLoading
+                  ? "Loading structures…"
+                  : structures.length
+                    ? "Select a structure…"
+                    : "No salary structures exist yet"}
+              </option>
+              {structures.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s._count?.rules ?? 0} rule(s))
+                </option>
+              ))}
+            </select>
+          </label>
+          {!structuresLoading && !structures.length && (
+            <div className="page-subtitle">
+              Create a salary structure first on the{" "}
+              <button
+                type="button"
+                className="btn btn-small btn-secondary"
+                onClick={() => navigate("/payroll/salary-structures")}
+              >
+                Salary Structures
+              </button>{" "}
+              page.
+            </div>
+          )}
+        </div>
+        {error && <div className="form-error"><AlertCircle size={16} />{error}</div>}
         <EmptyState
           icon={ListTree}
           title="No salary structure selected"
-          description="Pick a structure from Salary Structures to view and edit its rules."
+          description="Pick a structure above (or from Salary Structures) to view and edit its rules."
         />
       </div>
     );
@@ -103,6 +167,18 @@ export default function SalaryRulesPage() {
           <h1>{structure?.name || "Salary"} Rules</h1>
           <div className="page-subtitle">{loading ? "Loading…" : `${rules.length} rule(s)`}</div>
         </div>
+      </div>
+      <div className="card">
+        <label>
+          Salary structure
+          <select value={structureId} onChange={selectStructure}>
+            {structures.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       {canWrite && (
         <form className="card" onSubmit={save}>
